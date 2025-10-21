@@ -1,0 +1,11 @@
+---
+bin_dir: /usr/local/bin
+working_dir: "{{ tmp_dir }}"
+
+state: present
+
+openshift_version: "stable-{{ ocp_cluster.ocp_version }}"
+
+aws_region: "{{ aws.aws_region }}"          # aws region for install
+cluster_name: "{{ ocp_cluster.name }}"
+...

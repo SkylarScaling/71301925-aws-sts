@@ -1,0 +1,17 @@
+---
+- name: Install ccoctl utility
+  hosts: localhost
+  connection: local
+  gather_facts: false
+  vars:
+    ccoctl_url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/{{ openshift_version }}/ccoctl-linux.tar.gz
+    ccoctl_install_path: "{{ bin_dir }}/ccoctl"
+    ocp_installer_bin_dir: "{{ bin_dir }}/openshift-installer"
+    ccoctl_bin: "{{ ccoctl_install_path | default('/usr/local/bin/ccoctl') }}"
+    work_dir: "{{ working_dir | default('/tmp/ccoctl-work') }}"
+    ccoctl_version: "{{ ccoctl_release_version | default('4.19.0') }}"
+
+  tasks:
+    - name: Download ccoctl utility
+      include_role:
+        name: install_aws_sts_prerequisites
