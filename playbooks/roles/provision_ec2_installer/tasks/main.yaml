@@ -167,10 +167,10 @@
     tags:
       Automation: "openshift_connected_installer"
     volumes:
-      - device_name: /dev/sda1
+      - device_name: /dev/xvda # or /dev/sda1 for some AMIs
         ebs:
           volume_type: gp2
-          volume_size: 80
+          volume_size: 50
           delete_on_termination: true
   register: ec2_instance_result
 

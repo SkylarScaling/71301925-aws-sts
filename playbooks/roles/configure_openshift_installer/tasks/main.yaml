@@ -1,15 +1,15 @@
-#- name: Install Required RPM Packages
-#  ansible.builtin.dnf:
-#    name:
-#      - tmux
-#      - wget
-#      - jq
-#      - unzip
-#      - openssl-devel
-#      - git
-#      - ansible-core
-#    state: present
-#  become: true
+- name: Install Required RPM Packages
+  ansible.builtin.yum:
+    name:
+      - tmux
+      - wget
+      - jq
+      - unzip
+      - openssl-devel
+      - git
+      - ansible-core
+    state: present
+  become: true
 
 - name: Create .aws directory
   ansible.builtin.file:
@@ -45,6 +45,11 @@
     - rosa-linux.tar.gz
     - openshift-install-linux.tar.gz
     - ccoctl-linux-rhel9.tar.gz
+
+- name: create install_dir to work in
+  ansible.builtin.file:
+    state: directory
+    path: "/home/ec2-user/install-dir"
 
 - name: Copy install-config.yaml from template
   ansible.builtin.template:
