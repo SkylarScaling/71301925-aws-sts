@@ -5,10 +5,10 @@
 ## ocp-install/install-config.yaml
 ```yaml
 ...
-platform:
-  aws:
-    region: <aws-region>
-    credentialsMode: Manual  # <-- Set this
+apiVersion: v1
+baseDomain: example.com
+credentialsMode: Manual  # <-- Add This
+# ...
 ...
 ```
 

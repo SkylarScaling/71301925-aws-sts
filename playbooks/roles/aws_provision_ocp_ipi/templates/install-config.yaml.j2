@@ -1,5 +1,8 @@
 apiVersion: v1
 baseDomain: {{ install_config.base_domain }}
+{% if install_config.cred_mode is defined %}
+credentialsMode: {{ install_config.cred_mode }}
+{% endif %}
 compute:
 - architecture: amd64
   hyperthreading: Enabled
@@ -83,10 +86,7 @@ networking:
 {% endif %}
 platform:
   aws:
-    region: {{ install_config.aws_region }}
-{% if aws.aws_cred_mode is defined %}
-    credentialsMode: {{ aws.aws_cred_mode }}
-{% endif %}
+    region: {{ aws.aws_region }}
 {% if install_config.infra_tags is defined %}
     userTags:
       {{ install_config.infra_tags | to_nice_yaml | indent(6) }}

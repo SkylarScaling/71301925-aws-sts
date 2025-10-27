@@ -1,0 +1,52 @@
+#- name: Install Required RPM Packages
+#  ansible.builtin.dnf:
+#    name:
+#      - tmux
+#      - wget
+#      - jq
+#      - unzip
+#      - openssl-devel
+#      - git
+#      - ansible-core
+#    state: present
+#  become: true
+
+- name: Create .aws directory
+  ansible.builtin.file:
+    path: "/home/ec2-user/.aws"
+    state: directory
+
+- name: Update .aws/config with region
+  ansible.builtin.copy:
+    dest: "/home/ec2-user/.aws/config"
+    content: |
+      [default]
+      region = {{ aws_region }}
+
+- name: Download OpenShift and AWS CLI tools
+  ansible.builtin.get_url:
+    url: "{{ item }}"
+    dest: /home/ec2-user/
+  loop:
+    - "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/{{ openshift_version }}.{{ ocp_patch_version }}/openshift-client-linux.tar.gz"
+    - "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/{{ openshift_version }}.{{ ocp_patch_version }}/openshift-install-linux.tar.gz"
+    - "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/{{ openshift_version }}.{{ ocp_patch_version }}/ccoctl-linux-rhel9.tar.gz"
+    - "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
+    - "https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz"
+
+- name: Unarchive Downloaded Files
+  ansible.builtin.unarchive:
+    src: "/home/ec2-user/{{ item }}"
+    dest: /home/ec2-user/
+    remote_src: yes
+  loop:
+    - openshift-client-linux.tar.gz
+    - awscli-exe-linux-x86_64.zip
+    - rosa-linux.tar.gz
+    - openshift-install-linux.tar.gz
+    - ccoctl-linux-rhel9.tar.gz
+
+- name: Copy install-config.yaml from template
+  ansible.builtin.template:
+    src: "install-config.yaml.j2"
+    dest: "/home/ec2-user/install-dir/install-config.yaml"

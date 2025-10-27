@@ -1,0 +1,17 @@
+---
+prefix_for_name: skylar-sts
+aws_region: us-east-2
+aws_availability_zone_1: "{{ aws_region }}a"
+aws_availability_zone_2: "{{ aws_region }}b"
+aws_availability_zone_3: "{{ aws_region }}c"
+aws_connected_vpc_name: "{{ prefix_for_name }}-connected"
+aws_connected_vpc_cidr: 172.16.0.0/16
+aws_connected_subnet_cidr_az1: 172.16.1.0/24
+aws_connected_subnet_cidr_az2: 172.16.2.0/24
+aws_connected_subnet_cidr_az3: 172.16.3.0/24
+aws_connected_public_subnet_cidr_az1: 172.16.4.0/24
+aws_connected_public_subnet_cidr_az2: 172.16.5.0/24
+aws_connected_public_subnet_cidr_az3: 172.16.6.0/24
+aws_security_group_for_endpoint: vpc-endpoint-allow
+aws_iam_role_name: "{{ prefix_for_name }}-ocp-install-ec2"
+...

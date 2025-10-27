@@ -22,7 +22,7 @@
 
     - name: Define ccoctl download URL
       ansible.builtin.set_fact:
-        ccoctl_url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/{{ openshift_version }}/ccoctl-linux.tar.gz"
+        ccoctl_url: "https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-{{ openshift_version }}/ccoctl-linux.tar.gz"
 
     - name: Create /tmp directory
       ansible.builtin.file:

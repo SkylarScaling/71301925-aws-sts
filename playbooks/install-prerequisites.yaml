@@ -4,7 +4,7 @@
   connection: local
   gather_facts: false
   vars:
-    ccoctl_url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/{{ openshift_version }}/ccoctl-linux.tar.gz
+    ccoctl_url: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/stable-{{ openshift_version }}/ccoctl-linux.tar.gz
     ccoctl_install_path: "{{ bin_dir }}/ccoctl"
     ocp_installer_bin_dir: "{{ bin_dir }}/openshift-installer"
     ccoctl_bin: "{{ ccoctl_install_path | default('/usr/local/bin/ccoctl') }}"
