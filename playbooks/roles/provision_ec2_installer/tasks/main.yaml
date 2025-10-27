@@ -100,7 +100,7 @@
   amazon.aws.route53_zone:
     vpc_id: "{{ connected_vpc_info.vpcs[0].vpc_id }}"
     vpc_region: "{{ aws_region }}"
-    zone: "{{ openshift_cluster_name }}.{{ openshift_base_domain }}"
+    zone: "{{ openshift_cluster_name }}.{{ install_config.base_domain }}"
     state: present
   register: hosted_zone_info
 
@@ -170,7 +170,7 @@
       - device_name: /dev/sda1
         ebs:
           volume_type: gp2
-          volume_size: 50
+          volume_size: 80
           delete_on_termination: true
   register: ec2_instance_result
 
