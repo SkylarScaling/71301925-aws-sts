@@ -1,2 +1,2 @@
 # Default variables for OpenShift configuration tasks
-sts_suffix: "my-ocp-cluster-sts"
+sts_suffix: "skylar-sts"
