@@ -19,7 +19,7 @@ mkdir -p /home/ec2-user/install-dir /home/ec2-user/sts
 
 # Step 3
 ```
-RELEASE_IMAGE=\$(openshift-install version | awk '/release image/ {print $3}')
+RELEASE_IMAGE=$(openshift-install version | awk '/release image/ {print $3}')
 ```
 
 # Step 4
