@@ -77,13 +77,6 @@ all:
       cluster_name: "{{ ocp_cluster.name }}"
       base_domain: "{{ ocp_cluster.base_domain }}"
       aws_region: "{{ aws.aws_region }}"
-      control_plane:
-        instance_type: "m5.xlarge"
-      workers:
-        instance_type: "m5.2xlarge"
-        replicas: "3"
-      infras:
-        instance_type: "m5.2xlarge"
       ssh_key: <ssh-key>
       pull_secret: '<pull-secret>'
 ```
