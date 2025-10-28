@@ -32,7 +32,7 @@
     - "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/{{ openshift_version }}.{{ ocp_patch_version }}/openshift-install-linux.tar.gz"
     - "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/{{ openshift_version }}.{{ ocp_patch_version }}/ccoctl-linux-rhel9.tar.gz"
     - "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
-    - "https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz"
+#    - "https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz"
 
 - name: Unarchive Downloaded Files
   ansible.builtin.unarchive:
@@ -42,16 +42,89 @@
   loop:
     - openshift-client-linux.tar.gz
     - awscli-exe-linux-x86_64.zip
-    - rosa-linux.tar.gz
+#    - rosa-linux.tar.gz
     - openshift-install-linux.tar.gz
     - ccoctl-linux-rhel9.tar.gz
 
-- name: create install_dir to work in
-  ansible.builtin.file:
-    state: directory
-    path: "/home/ec2-user/install-dir"
+- name: Copy CLI tools to /usr/bin
+  copy:
+    src: "/home/ec2-user/{{ item }}"
+    dest: "/usr/bin/{{ item }}"
+    remote_src: yes
+    mode: 0755
+  loop:
+    - oc
+#    - rosa
+    - kubectl
+    - openshift-install
+    - ccoctl
+  become: yes
 
-- name: Copy install-config.yaml from template
-  ansible.builtin.template:
-    src: "install-config.yaml.j2"
+- name: Create credentials directory
+  file:
+    path: "/home/ec2-user/{{ item }}"
+    state: directory
+  loop:
+    - install-dir
+    - sts
+
+- name: Delete existing sts resources
+  shell: |
+    cd /home/ec2-user/sts
+    ccoctl aws delete --name {{ sts_suffix }} --region {{ aws_region }}
+
+- name: Extract the list of CredentialsRequest objects from the OpenShift Container Platform release image
+  shell: |
+    cd /home/ec2-user/sts
+    RELEASE_IMAGE=$(openshift-install version | awk '/release image/ {print $3}')
+    oc adm release extract --credentials-requests \
+    --cloud=aws \
+    --to=/home/ec2-user/sts/credrequests \
+    ${RELEASE_IMAGE}
+
+- name: Create All STS Files
+  shell: |
+    cd /home/ec2-user/sts
+    ccoctl aws create-all \
+    --credentials-requests-dir /home/ec2-user/sts/credrequests/ \
+    --name {{ sts_suffix }} \
+    --region {{ aws_region }} \
+    --create-private-s3-bucket
+
+- name: Copy install-config.yaml
+  template:
+    src: "{{ item }}.j2"
+    dest: "{{ item }}"
+  loop:
+    - install-config.yaml
+
+- name: Copy Install-config.yaml to install-dir
+  copy:
+    src: "/home/ec2-user/install-config.yaml"
     dest: "/home/ec2-user/install-dir/install-config.yaml"
+    remote_src: yes
+    mode: 0644
+
+- name: Generate Manifests
+  shell: |
+    openshift-install create manifests --dir /home/ec2-user/install-dir
+
+- name: Copy STS credentials to install-dir/manifests
+  copy:
+    src: "/home/ec2-user/sts/manifests/"
+    dest: "/home/ec2-user/install-dir/manifests/"
+    remote_src: yes
+
+- name: Copy STS tls files to install-dir/
+  copy:
+    src: /home/ec2-user/sts/tls
+    dest: /home/ec2-user/install-dir/
+    remote_src: yes
+
+#  - name: Install the cluster
+#    shell: |
+#      openshift-install create cluster --dir /home/ec2-user/install-dir --log-level=debug
+#
+#  - name: Destroy the cluster
+#    shell: |
+#      openshift-install destroy cluster --dir /home/ec2-user/install-dir --log-level=debug
