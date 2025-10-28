@@ -15,7 +15,7 @@
 
   # Both roles will inherit these variables
   vars:
-    aws_region: "us-east-2"
+    aws_region: "{{ aws.aws_region }}"
 
   roles:
     - configure_openshift_installer
