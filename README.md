@@ -27,7 +27,7 @@ RELEASE_IMAGE=\$(openshift-install version | awk '/release image/ {print $3}')
 oc adm release extract --from=$RELEASE_IMAGE --credentials-requests --included --install-config=install-config.yaml --to=credrequests
 ```
 
-# Step 6
+# Step 5
 ```
 cd /home/ec2-user/sts && \
 ccoctl aws create-all \
@@ -37,22 +37,22 @@ ccoctl aws create-all \
   --create-private-s3-bucket
 ```
 
-# Step 7
+# Step 6
 ```
 openshift-install create manifests --dir /home/ec2-user/install-dir
 ```
 
-# Step 8
+# Step 7
 ```
 cp -r /home/ec2-user/sts/manifests/. /home/ec2-user/install-dir/manifests/
 ```
 
-# Step 9
+# Step 8
 ```
 cp -r /home/ec2-user/sts/tls /home/ec2-user/install-dir/
 ```
 
-# Step 10
+# Step 9
 ```
 <Cluster Install>
 ```
