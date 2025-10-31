@@ -71,7 +71,7 @@
 - name: Delete existing sts resources
   shell: |
     cd /home/ec2-user/sts
-    ccoctl aws delete --name {{ sts_suffix }} --region {{ aws_region }}
+    ccoctl aws delete --name {{ aws.sts_resource_name }} --region {{ aws_region }}
 
 - name: Extract the list of CredentialsRequest objects from the OpenShift Container Platform release image
   shell: |
@@ -87,7 +87,7 @@
     cd /home/ec2-user/sts
     ccoctl aws create-all \
     --credentials-requests-dir /home/ec2-user/sts/credrequests/ \
-    --name {{ sts_suffix }} \
+    --name {{ aws.sts_resource_name }} \
     --region {{ aws_region }} \
     --create-private-s3-bucket
 
@@ -121,10 +121,23 @@
     dest: /home/ec2-user/install-dir/
     remote_src: yes
 
-#  - name: Install the cluster
-#    shell: |
-#      openshift-install create cluster --dir /home/ec2-user/install-dir --log-level=debug
+#- name: Install the cluster
+#  shell: |
+#    openshift-install create cluster --dir /home/ec2-user/install-dir --log-level=debug
+#  async: 3600
+#  poll: 0
+#  register: cluster_deploy
 #
-#  - name: Destroy the cluster
-#    shell: |
-#      openshift-install destroy cluster --dir /home/ec2-user/install-dir --log-level=debug
+#- name: Check the status of the install
+#  ansible.builtin.async_status:
+#    jid: "{{ cluster_deploy.ansible_job_id }}"
+#  register: job_status
+#  until: job_status.finished
+#  retries: 120
+#  delay: 30
+#  ignore_errors: true
+
+#- name: Destroy the cluster if install fails
+#  shell: |
+#    openshift-install destroy cluster --dir /home/ec2-user/install-dir --log-level=debug
+#  when: install_result.failed

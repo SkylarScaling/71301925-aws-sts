@@ -32,7 +32,7 @@ oc adm release extract --from=$RELEASE_IMAGE --credentials-requests --included -
 cd /home/ec2-user/sts && \
 ccoctl aws create-all \
   --credentials-requests-dir /home/ec2-user/sts/credrequests/ \
-  --name "<sts_suffix>" \
+  --name "<sts_resource_name>" \
   --region "<aws_region>" \
   --create-private-s3-bucket
 ```
@@ -68,14 +68,15 @@ all:
     tmp_dir: /home/<user>/tmp
     aws:
       aws_region: <aws-region>
-      aws_cred_mode: Manual # Uncomment for STS
+      sts_resource_name: <unique-resource-name>
     ocp_cluster:
       name: <cluster-name>
       base_domain: <base-domain>
-      ocp_version: 4.19
+      ocp_version: 4.18
     install_config:
       cluster_name: "{{ ocp_cluster.name }}"
       base_domain: "{{ ocp_cluster.base_domain }}"
+      cred_mode: Manual
       aws_region: "{{ aws.aws_region }}"
       ssh_key: <ssh-key>
       pull_secret: '<pull-secret>'

@@ -1,16 +1,49 @@
 ---
-- name: Install OpenShift 4.19 on AWS (IPI) using STS short-term credentials
-  gather_facts: false
+# Play 0: Setup Prerequisites
+- name: Install AWS STS Pre-Requisites
   hosts: localhost
-  collections:
-    - community.aws
-    - amazon.aws
+  connection: local
+  gather_facts: false
 
   tasks:
-    - name: Set Playbook Facts
-      set_fact:
-        cluster_address: "{{ ocp_cluster.name }}.{{ ocp_cluster.base_domain }}"
+    - name: Ensure .aws directory exists
+      ansible.builtin.file:
+        path: "~/.aws"
+        state: directory
+        mode: '0755'
 
-    - include_role:
-        name: aws_provision_ocp_ipi
-...
+    - name: Configure AWS credentials for the default profile
+      ansible.builtin.ini_file:
+        path: "~/.aws/credentials"
+        section: "default"
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
+        mode: '0600' # Set secure file permissions
+      loop:
+        - { option: 'aws_access_key_id', value: '{{ aws.aws_access_key_id }}' }
+        - { option: 'aws_secret_access_key', value: '{{ aws.aws_secret_access_key }}' }
+
+    - name: Create Connected AWS VPC
+      include_role:
+        name: create_connected_aws_vpc
+
+# Play 1: Provision the EC2 Host
+- name: PROVISION EC2 INSTALLER HOST
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  roles:
+    - provision_ec2_installer
+
+# Play 2: Configure the newly created host
+- name: CONFIGURE NEW EC2 INSTALLER HOST
+  hosts: newly_created_ec2 # Target the dynamic group created by the first role
+  gather_facts: false
+
+  # Both roles will inherit these variables
+  vars:
+    aws_region: "{{ aws.aws_region }}"
+
+  roles:
+    - configure_openshift_installer
