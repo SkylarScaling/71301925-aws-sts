@@ -1,12 +1,10 @@
 # Default variables for provisioning the EC2 instance
-prefix_for_name: skylar-sts
 aws_key_name: "{{ prefix_for_name }}_ansible"
 aws_instance_type: t3.medium
 instance_count: 1
 aws_security_group_for_ec2: ping_ssh_8443
 aws_connected_vpc_name: "{{ prefix_for_name }}-connected"
-openshift_cluster_name_suffix: xx1
-openshift_cluster_name: "{{ prefix_for_name }}-{{ openshift_cluster_name_suffix }}"
+openshift_cluster_name: "{{ ocp_cluster.name }}"
 aws_instance_name: "{{ openshift_cluster_name }}-installer"
 aws_iam_role_name: "{{ prefix_for_name }}-ocp-install-ec2"
 ssh_public_key_for_ec2_and_openshift_node: "{{ install_config.ssh_key }}"

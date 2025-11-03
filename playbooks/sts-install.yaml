@@ -13,9 +13,5 @@
   hosts: newly_created_ec2 # Target the dynamic group created by the first role
   gather_facts: false
 
-  # Both roles will inherit these variables
-  vars:
-    aws_region: "{{ aws.aws_region }}"
-
   roles:
     - configure_openshift_installer
