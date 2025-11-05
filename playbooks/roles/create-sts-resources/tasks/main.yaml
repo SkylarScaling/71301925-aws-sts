@@ -140,7 +140,7 @@
     dest: /home/ec2-user/install-dir/
     remote_src: yes
 
-- name: Download directory from remote using synchronize
+- name: Download directory from remote using synchronize # TODO REMOVE
   ansible.posix.synchronize:
     mode: pull
     src: /home/ec2-user/install-dir/
