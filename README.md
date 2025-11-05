@@ -28,13 +28,33 @@ oc adm release extract --from=$RELEASE_IMAGE --credentials-requests --included -
 ```
 
 # Step 5
-```
-cd /home/ec2-user/sts && \
-ccoctl aws create-all \
-  --credentials-requests-dir /home/ec2-user/sts/credrequests/ \
-  --name "<sts_resource_name>" \
-  --region "<aws_region>" \
-  --create-private-s3-bucket
+> \<TODO> This should be automated and owned by the AWS team as a prerequisite
+
+```shell
+$ cd /home/ec2-user/sts
+
+# Creates serviceaccount-signer and tls directory with key
+$ ccoctl aws create-key-pair 
+
+# Creates Identity Provider json files (01-04) and manifests directory with cluster auth config
+$ ccoctl aws create-identity-provider \
+  --name={{ aws.sts_resource_name }} \
+  --region={{ aws_region }} \
+  --public-key-file=serviceaccount-signer.public \
+  --dry-run 
+
+# <TODO> Output from dry-run should be created in AWS
+
+# Creates IAM Role json files (05-06) and additional credentials yaml files in manifests directory
+$ ccoctl aws create-iam-roles \
+  --name={{ aws.sts_resource_name }} \
+  --region={{ aws_region }} \
+  --credentials-requests-dir=/home/ec2-user/sts/credrequests \
+  --identity-provider-arn=arn:aws:iam::{{ aws.account_id }}:oidc-provider/{{ aws.sts_resource_name }}-oidc.s3.{{ aws_region }}.amazonaws.com \
+  --dry-run 
+  
+# <TODO> Output from dry-run should be created in AWS
+# <TODO> Output from manifests and tls directory should be sent to OCP team for use in the following steps
 ```
 
 # Step 6

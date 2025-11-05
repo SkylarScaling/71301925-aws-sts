@@ -42,4 +42,4 @@
   gather_facts: false
 
   roles:
-    - configure_openshift_installer
+    - create-sts-resources
