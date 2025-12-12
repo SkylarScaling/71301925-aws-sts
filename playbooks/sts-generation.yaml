@@ -42,4 +42,4 @@
   gather_facts: false
 
   roles:
-    - create-sts-resources
+    - create_sts_resources

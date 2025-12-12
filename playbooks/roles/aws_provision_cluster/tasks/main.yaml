@@ -1,0 +1,39 @@
+- name: Install the cluster
+  shell: |
+    openshift-install create cluster --dir /home/ec2-user/install-dir --log-level=debug
+  async: 3600
+  poll: 0
+  register: cluster_deploy
+
+- name: Check the status of the install
+  ansible.builtin.async_status:
+    jid: "{{ cluster_deploy.ansible_job_id }}"
+  register: job_status
+  until: job_status.finished
+  retries: 120
+  delay: 30
+  ignore_errors: true
+
+- name: Create a local directory for artifacts #TODO REMOVE
+  ansible.builtin.file:
+    path: "{{ working_dir }}/{{ cluster_name }}/install-dir"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Download directory from remote using synchronize # TODO REMOVE
+  ansible.posix.synchronize:
+    mode: pull
+    src: /home/ec2-user/install-dir
+    dest: "{{ working_dir }}/{{ cluster_name }}/install-dir"
+    recursive: yes
+
+- debug:
+    msg: "Created STS resources and copied them locally to: {{ working_dir }}/{{ cluster_name }}"
+
+#- name: Destroy the cluster if install fails
+#  shell: |
+#    openshift-install destroy cluster --dir /home/ec2-user/install-dir --log-level=debug
+#  when: install_result.failed
