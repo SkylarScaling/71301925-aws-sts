@@ -133,3 +133,13 @@
       - "{{ connected_rt_private.route_table.route_table_id }}"
     tags:
       Name: "{{ prefix_for_name }}-s3-connected"
+
+- name: Aggregate Subnet IDs for OpenShift Install Config
+  set_fact:
+    openshift_aws_subnets:
+      - "{{ connected_public_subnet_info_az1.subnet.id }}"
+      - "{{ connected_public_subnet_info_az2.subnet.id }}"
+      - "{{ connected_public_subnet_info_az3.subnet.id }}"
+      - "{{ connected_subnet_info_az1.subnet.id }}"
+      - "{{ connected_subnet_info_az2.subnet.id }}"
+      - "{{ connected_subnet_info_az3.subnet.id }}"

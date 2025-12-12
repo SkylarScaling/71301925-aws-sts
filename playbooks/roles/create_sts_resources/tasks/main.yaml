@@ -146,3 +146,6 @@
     src: /home/ec2-user/install-dir/
     dest: "{{ working_dir }}/{{ cluster_name }}"
     recursive: yes
+
+- debug:
+    msg: "Created STS resources and copied them locally to: {{ working_dir }}/{{ cluster_name }}"

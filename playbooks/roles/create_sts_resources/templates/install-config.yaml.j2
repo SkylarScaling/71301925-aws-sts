@@ -87,6 +87,12 @@ networking:
 platform:
   aws:
     region: {{ aws.aws_region }}
+{% if install_config.manual_subnets is defined %}
+    subnets:
+{% for subnet_id in openshift_aws_subnets %}
+      - {{ subnet_id }}
+{% endfor %}
+{% endif %}
 {% if install_config.infra_tags is defined %}
     userTags:
       {{ install_config.infra_tags | to_nice_yaml | indent(6) }}
