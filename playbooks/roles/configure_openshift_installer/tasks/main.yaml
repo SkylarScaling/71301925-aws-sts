@@ -135,7 +135,7 @@
   ansible.posix.synchronize:
     mode: pull
     src: /home/ec2-user/sts
-    dest: "{{ working_dir }}/{{ cluster_name }}/sts"
+    dest: "{{ working_dir }}/{{ cluster_name }}"
     recursive: yes
 
 - name: Create a local directory for artifacts #TODO REMOVE
@@ -151,7 +151,7 @@
   ansible.posix.synchronize:
     mode: pull
     src: /home/ec2-user/install-dir
-    dest: "{{ working_dir }}/{{ cluster_name }}/install-dir"
+    dest: "{{ working_dir }}/{{ cluster_name }}"
     recursive: yes
 
 - debug:

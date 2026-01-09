@@ -14,6 +14,21 @@
   delay: 30
   ignore_errors: true
 
+- debug:
+    msg: "Cluster console available at: https://console-openshift-console.apps.{{ cluster_name }}.{{ base_domain }}/"
+
+- name: Get kubeconfig auth
+  set_fact:
+    kubefile: "/home/ec2-user/install-dir/auth/kubeadmin-password"
+
+- name: Slurp the remote file
+  ansible.builtin.slurp:
+    src: "{{ kubefile }}"
+  register: remote_kube_file
+
+- debug:
+    msg: "kubeadmin pw: {{ remote_kube_file['content'] | b64decode }}"
+
 - name: Create a local directory for artifacts #TODO REMOVE
   ansible.builtin.file:
     path: "{{ working_dir }}/{{ cluster_name }}/install-dir"
