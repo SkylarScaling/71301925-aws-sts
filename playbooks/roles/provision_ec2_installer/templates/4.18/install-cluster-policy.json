@@ -71,6 +71,7 @@
                 "elasticloadbalancing:DescribeLoadBalancers",
                 "elasticloadbalancing:DescribeTags",
                 "elasticloadbalancing:DescribeTargetGroupAttributes",
+                "elasticloadbalancing:DescribeTargetGroups",
                 "elasticloadbalancing:DescribeTargetHealth",
                 "elasticloadbalancing:ModifyLoadBalancerAttributes",
                 "elasticloadbalancing:ModifyTargetGroup",

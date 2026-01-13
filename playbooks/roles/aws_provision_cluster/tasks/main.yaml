@@ -12,7 +12,6 @@
   until: job_status.finished
   retries: 120
   delay: 30
-  ignore_errors: true
 
 - debug:
     msg: "Cluster console available at: https://console-openshift-console.apps.{{ cluster_name }}.{{ base_domain }}/"

@@ -26,7 +26,7 @@
 #    iam_name: "{{ aws_iam_role_name }}"
 #    policy_json: "{{ lookup('template', '4.18/ccoctl-policy.json') }}"
 #    state: present
-#
+
 #- name: Create policy to Delete Cluster and attach to the role
 #  amazon.aws.iam_policy:
 #    policy_name: openshift-delete-cluster-4-18
