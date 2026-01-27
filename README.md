@@ -2,7 +2,7 @@
 
 # Cluster Provisioning Automation
 ```shell
- ansible-playbook provision-cluster.yaml -i ~/<inventory_file>
+ ansible-playbook provision-cluster-full.yaml -i ~/<inventory_file>
 ```
 
 ## Example Inventory

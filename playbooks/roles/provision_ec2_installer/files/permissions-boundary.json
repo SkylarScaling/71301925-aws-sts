@@ -62,6 +62,7 @@
         "elasticloadbalancing:CreateLoadBalancer",
         "elasticloadbalancing:CreateLoadBalancerListeners",
         "elasticloadbalancing:CreateTargetGroup",
+        "elasticloadbalancing:DeleteTargetGroup",
         "elasticloadbalancing:DeleteLoadBalancer",
         "elasticloadbalancing:DeregisterInstancesFromLoadBalancer",
         "elasticloadbalancing:DeregisterTargets",
@@ -91,6 +92,7 @@
         "route53:ListResourceRecordSets",
         "route53:ListTagsForResource",
         "route53:UpdateHostedZoneComment",
+        "route53:ListQueryLoggingConfigs",
         "kms:CreateGrant",
         "kms:Decrypt",
         "kms:DescribeKey",
@@ -100,7 +102,17 @@
         "kms:ListGrants",
         "kms:RevokeGrant",
         "servicequotas:ListServiceQuotas",
-        "servicequotas:ListAWSDefaultServiceQuotas"
+        "servicequotas:ListAWSDefaultServiceQuotas",
+        "cloudformation:DescribeStacks",
+        "cloudformation:CreateStack",
+        "cloudformation:UpdateStack",
+        "cloudformation:DeleteStack",
+        "cloudformation:DescribeStackEvents",
+        "cloudformation:ListStackResources",
+        "lambda:DeleteFunction",
+        "lambda:CreateFunction",
+        "lambda:GetFunction",
+        "lambda:InvokeFunction"
       ],
       "Resource": "*"
     },
@@ -142,6 +154,7 @@
         "iam:CreateInstanceProfile",
         "iam:AddRoleToInstanceProfile",
         "iam:PassRole",
+        "iam:DeleteRole",
         "iam:At*e*",
         "iam:C*teP*V*",
         "iam:C*teR*",
@@ -150,12 +163,7 @@
         "iam:Pu*e*y",
         "iam:Tag*"
       ],
-      "Resource": "*",
-      "Condition": {
-        "StringLikeIfExists": {
-          "iam:PermissionsBoundary": "arn:aws:iam::311141519123:policy/gwt-openshift-boundary-policy"
-        }
-      }
+      "Resource": "*"
     },
     {
       "Sid": "AllowCloudFront",

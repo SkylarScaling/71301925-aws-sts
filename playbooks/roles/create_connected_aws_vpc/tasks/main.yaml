@@ -134,6 +134,31 @@
     tags:
       Name: "{{ prefix_for_name }}-s3-connected"
 
+- name: Get Route53 Hosted Zone ID for Base Domain
+  amazon.aws.route53_info:
+    query: hosted_zone
+    hosted_zone_method: list_by_name
+    dns_name: "{{ base_domain }}"
+  register: route53_zone_info
+
+- debug:
+    msg:
+      - "VPC ID:"
+      - "  {{ connected_vpc_info.vpc.id }}"
+      - ""
+      - "Hosted Zone ID:"
+      - "  {{ route53_zone_info.HostedZones[0].Id.split('/')[-1] }}"
+      - ""
+      - "Public Subnets:"
+      - "  {{ connected_public_subnet_info_az1.subnet.id }}"
+      - "  {{ connected_public_subnet_info_az2.subnet.id }}"
+      - "  {{ connected_public_subnet_info_az3.subnet.id }}"
+      - ""
+      - "Private Subnets:"
+      - "  {{ connected_subnet_info_az1.subnet.id }}"
+      - "  {{ connected_subnet_info_az2.subnet.id }}"
+      - "  {{ connected_subnet_info_az3.subnet.id }}"
+
 - name: Aggregate Subnet IDs for OpenShift Install Config
   set_fact:
     openshift_aws_subnets:

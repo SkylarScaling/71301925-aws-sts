@@ -1,32 +1,4 @@
 ---
-# Play 0: Setup Prerequisites
-- name: Install AWS STS Pre-Requisites
-  hosts: localhost
-  connection: local
-  gather_facts: false
-
-  tasks:
-    - name: Ensure .aws directory exists
-      ansible.builtin.file:
-        path: "~/.aws"
-        state: directory
-        mode: '0755'
-
-    - name: Configure AWS credentials for the default profile
-      ansible.builtin.ini_file:
-        path: "~/.aws/credentials"
-        section: "default"
-        option: "{{ item.option }}"
-        value: "{{ item.value }}"
-        mode: '0600' # Set secure file permissions
-      loop:
-        - { option: 'aws_access_key_id', value: '{{ aws.aws_access_key_id }}' }
-        - { option: 'aws_secret_access_key', value: '{{ aws.aws_secret_access_key }}' }
-
-    - name: Create Connected AWS VPC
-      include_role:
-        name: create_connected_aws_vpc
-
 # Play 1: Provision the EC2 Host
 - name: PROVISION EC2 INSTALLER HOST
   hosts: localhost
@@ -40,9 +12,11 @@
 - name: CONFIGURE NEW EC2 INSTALLER HOST
   hosts: newly_created_ec2 # Target the dynamic group created by the first role
   gather_facts: false
-  vars:
-    # "Go to localhost and grab the openshift_aws_subnets variable"
-    openshift_aws_subnets: "{{ hostvars['localhost']['openshift_aws_subnets'] }}"
+
+  pre_tasks:
+    - name: Aggregate Subnet IDs for OpenShift Install Config
+      set_fact:
+        openshift_aws_subnets: "{{ aws.public_subnets + aws.private_subnets }}"
 
   roles:
     - configure_openshift_installer
@@ -52,5 +26,30 @@
   hosts: newly_created_ec2 # Target the dynamic group created by the first role
   gather_facts: false
 
+  # =================================================================
+  # PRE-TASKS: Install Python/Boto3 Dependencies
+  # =================================================================
+  pre_tasks:
+    - name: Bootstrap Python3 and Pip (Detect OS automatically)
+      raw: |
+        if command -v yum >/dev/null 2>&1; then
+          sudo yum install -y python3-pip
+        elif command -v apt-get >/dev/null 2>&1; then
+          sudo apt-get update && sudo apt-get install -y python3-pip
+        else
+          echo "No supported package manager found." >&2
+          exit 1
+        fi
+      changed_when: false
+
+    - name: Install AWS SDK (boto3) using the newly installed Pip
+      pip:
+        name:
+          - boto3
+          - botocore
+        state: present
+        executable: pip3
+
   roles:
-    - aws_provision_cluster
+#    - aws_provision_cluster_ipi
+    - aws_provision_cluster_cft

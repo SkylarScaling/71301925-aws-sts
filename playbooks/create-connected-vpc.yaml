@@ -1,0 +1,27 @@
+---
+- name: Create AWS VPC
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Ensure .aws directory exists
+      ansible.builtin.file:
+        path: "~/.aws"
+        state: directory
+        mode: '0755'
+
+    - name: Configure AWS credentials for the default profile
+      ansible.builtin.ini_file:
+        path: "~/.aws/credentials"
+        section: "default"
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
+        mode: '0600' # Set secure file permissions
+      loop:
+        - { option: 'aws_access_key_id', value: '{{ aws.aws_access_key_id }}' }
+        - { option: 'aws_secret_access_key', value: '{{ aws.aws_secret_access_key }}' }
+
+    - name: Create Connected AWS VPC
+      include_role:
+        name: create_connected_aws_vpc

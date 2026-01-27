@@ -1,0 +1,57 @@
+---
+# Play 0: Setup Prerequisites
+- name: Install AWS STS Pre-Requisites
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: Ensure .aws directory exists
+      ansible.builtin.file:
+        path: "~/.aws"
+        state: directory
+        mode: '0755'
+
+    - name: Configure AWS credentials for the default profile
+      ansible.builtin.ini_file:
+        path: "~/.aws/credentials"
+        section: "default"
+        option: "{{ item.option }}"
+        value: "{{ item.value }}"
+        mode: '0600' # Set secure file permissions
+      loop:
+        - { option: 'aws_access_key_id', value: '{{ aws.aws_access_key_id }}' }
+        - { option: 'aws_secret_access_key', value: '{{ aws.aws_secret_access_key }}' }
+
+    - name: Create Connected AWS VPC
+      include_role:
+        name: create_connected_aws_vpc
+
+# Play 1: Provision the EC2 Host
+- name: PROVISION EC2 INSTALLER HOST
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  roles:
+    - provision_ec2_installer
+
+# Play 2: Configure the newly created host
+- name: CONFIGURE NEW EC2 INSTALLER HOST
+  hosts: newly_created_ec2 # Target the dynamic group created by the first role
+  gather_facts: false
+  vars:
+    # "Go to localhost and grab the openshift_aws_subnets variable"
+    openshift_aws_subnets: "{{ hostvars['localhost']['openshift_aws_subnets'] }}"
+
+  roles:
+    - configure_openshift_installer
+
+# Play 3: Provision the OpenShift Cluster
+- name: PROVISION OPENSHIFT CLUSTER
+  hosts: newly_created_ec2 # Target the dynamic group created by the first role
+  gather_facts: false
+
+  roles:
+#    - aws_provision_cluster_ipi
+    - aws_provision_cluster_cft
