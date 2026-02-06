@@ -11,6 +11,7 @@
     policy_json: "{{ lookup('file', 'permissions-boundary.json') }}"
     state: present
 
+# TODO REMOVE
 #- name: Create Installer policy and attach to the role
 #  amazon.aws.iam_policy:
 #    policy_name: openshift-install-cluster-4-18

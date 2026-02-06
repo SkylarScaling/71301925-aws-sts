@@ -51,6 +51,36 @@
 - name: PROVISION OPENSHIFT CLUSTER
   hosts: newly_created_ec2 # Target the dynamic group created by the first role
   gather_facts: false
+  pre_tasks:
+    - name: Bootstrap Python3 and Pip (Detect OS automatically)
+      raw: |
+        if command -v yum >/dev/null 2>&1; then
+          sudo yum install -y python3-pip
+        elif command -v apt-get >/dev/null 2>&1; then
+          sudo apt-get update && sudo apt-get install -y python3-pip
+        else
+          echo "No supported package manager found." >&2
+          exit 1
+        fi
+      changed_when: false
+
+    - name: Install AWS SDK (boto3) using the newly installed Pip
+      pip:
+        name:
+          - boto3
+          - botocore
+        state: present
+        executable: pip3
+
+    - name: Override AWS Inventory Vars with Generated Network Info
+      set_fact:
+        aws: "{{ aws | combine(new_aws_data, recursive=True) }}"
+      vars:
+        new_aws_data:
+          vpc_id: "{{ hostvars['localhost']['aws_vpc_id'] }}"
+          hosted_zone_id: "{{ hostvars['localhost']['aws_hosted_zone_id'] }}"
+          public_subnets: "{{ hostvars['localhost']['aws_public_subnets'] }}"
+          private_subnets: "{{ hostvars['localhost']['aws_private_subnets'] }}"
 
   roles:
 #    - aws_provision_cluster_ipi

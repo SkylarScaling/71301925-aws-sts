@@ -112,7 +112,8 @@
         "lambda:DeleteFunction",
         "lambda:CreateFunction",
         "lambda:GetFunction",
-        "lambda:InvokeFunction"
+        "lambda:InvokeFunction",
+        "lambda:UpdateFunctionConfiguration"
       ],
       "Resource": "*"
     },

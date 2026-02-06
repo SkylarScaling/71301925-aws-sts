@@ -24,8 +24,6 @@ all:
     ocp_cluster:
       name: <cluster_name>
       base_domain: <base_domain>
-      ocp_version: 4.18
-      ocp_patch_version: 20
     install_config:    
       cluster_name: "{{ ocp_cluster.name }}"
       base_domain: "{{ ocp_cluster.base_domain }}"

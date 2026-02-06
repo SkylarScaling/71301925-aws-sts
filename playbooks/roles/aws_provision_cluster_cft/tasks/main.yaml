@@ -1,212 +1,277 @@
 # ----------------------------------------------------------------
-# 1. Ignition Generation
+# Ignition Generation
 # ----------------------------------------------------------------
 - name: Create Ignition Configs
   command: "openshift-install create ignition-configs --dir {{ install_dir }}"
 
-# ----------------------------------------------------------------
-# 2. Extract Data (InfraID, AMI, CA Certs)
-# ----------------------------------------------------------------
-- name: Read metadata.json for InfraID
-  slurp:
-    src: "{{ install_dir }}/metadata.json"
-  register: metadata_file
-
-- name: Set InfraID Fact
+# ---------------------------------------------------------
+# Generate a Stable Bucket Name
+# ---------------------------------------------------------
+# We create a variable for the bucket name so we can refer to it
+# later in the cleanup tasks and CloudFormation parameters.
+- name: "Define S3 Bucket Name"
   set_fact:
-    infra_id: "{{ (metadata_file.content | b64decode | from_json).infraID }}"
-
-- name: Fetch CoreOS AMI ID for Region
-  shell: |
-    ./openshift-install coreos print-stream-json | \
-    jq -r '.architectures.x86_64.images.aws.regions["{{ aws_region }}"].image'
-  register: ami_fetch
-
-- name: Set AMI Fact
-  set_fact:
-    rhcos_ami: "{{ ami_fetch.stdout }}"
-
-- name: Read master.ign to extract CA Certificate
-  slurp:
-    src: "{{ install_dir }}/master.ign"
-  register: master_ign_file
-
-- name: Extract CA Bundle from Ignition
-  set_fact:
-    # Extracts the "data:text/plain..." string from the JSON structure
-    ca_bundle: "{{ (master_ign_file.content | b64decode | from_json).ignition.security.tls.certificateAuthorities[0].source }}"
-
-# ----------------------------------------------------------------
-# 3. S3 Bootstrap Upload
-# ----------------------------------------------------------------
-- name: Generate Stable S3 Bucket Name
-  set_fact:
-    # We construct the name here so it doesn't change on every access
-    stable_s3_bucket: "{{ cluster_name }}-infra-bootstrap-{{ 99999 | random }}"
+    # Uses the cluster name + a random number (seeded to be stable for this run)
+    # or you can hardcode a specific name if preferred.
+    s3_bucket_name: "{{ ocp_cluster.name }}-infra-bootstrap-{{ 99999 | random }}"
   run_once: true
 
-- name: Create S3 Bucket (via CLI)
-  shell: "aws s3 mb s3://{{ stable_s3_bucket }} --region {{ aws_region }}"
+# ---------------------------------------------------------
+# Create S3 Bucket
+# ---------------------------------------------------------
+- name: "Create S3 Bucket"
+  shell: "aws s3 mb s3://{{ s3_bucket_name }} --region {{ aws.aws_region }}"
   register: s3_create
+  # Fail if error is NOT "BucketAlreadyExists" or "BucketAlreadyOwnedByYou"
   failed_when:
     - s3_create.rc != 0
     - '"BucketAlready" not in s3_create.stderr'
-  become: false
+  # Adding a small delay to ensure AWS registers the bucket existence
+  delay: 5
+  retries: 3
+  until: s3_create.rc == 0 or "BucketAlready" in s3_create.stderr
 
-- name: Upload Bootstrap Ignition (via CLI)
-  shell: "aws s3 cp {{ install_dir }}/bootstrap.ign s3://{{ stable_s3_bucket }}/bootstrap.ign"
-  become: false
+# ---------------------------------------------------------
+# Upload Bootstrap Ignition (CLI Method)
+# ---------------------------------------------------------
+- name: "Upload bootstrap.ign to S3"
+  shell: "aws s3 cp {{ install_dir }}/bootstrap.ign s3://{{ s3_bucket_name }}/bootstrap.ign"
 
-- name: Generate Presigned URL (via CLI)
-  shell: "aws s3 presign s3://{{ stable_s3_bucket }}/bootstrap.ign --expires-in 3600 --region {{ aws_region }}"
-  register: presign_output
-  become: false
+# ---------------------------------------------------------
+# 4. Generate Presigned URL (CLI Method)
+# ---------------------------------------------------------
+- name: "Generate Presigned URL"
+  shell: "aws s3 presign s3://{{ s3_bucket_name }}/bootstrap.ign --expires-in 3600 --region {{ aws.aws_region }}"
+  register: presign_out
 
-- name: Set Bootstrap URL Fact
+- name: "Set Bootstrap URL Fact"
   set_fact:
-    bootstrap_url:
-      url: "{{ presign_output.stdout | trim }}"
+    bootstrap_url: "{{ presign_out.stdout | trim }}"
 
-# ----------------------------------------------------------------
-# 4. Stack 1: Network (LBs, DNS, Lambdas)
-# ----------------------------------------------------------------
-- name: "Deploy Network Stack ({{ cft.tpl_net }})"
+- debug:
+    msg: "Created bootstrap URL: {{ bootstrap_url }}"
+
+# ---------------------------------------------------------
+# Get InfraID
+# ---------------------------------------------------------
+- name: "Config: Get InfraID from metadata.json"
+  shell: "jq -r .infraID {{ install_dir }}/metadata.json"
+  register: infra_id_out
+
+- name: Display InfraID
+  debug:
+    msg: "Detected InfraID: {{ infra_id_out.stdout }}"
+
+- set_fact:
+    infra_id: "{{ infra_id_out.stdout }}"
+
+# ---------------------------------------------------------
+# Network Stack
+# ---------------------------------------------------------
+- name: "Deploy Network Stack"
   amazon.aws.cloudformation:
-    stack_name: "{{ cluster_name }}-net-lb"
+    stack_name: "aws-ocp-dns"
     state: present
-    region: "{{ aws_region }}"
-    template_body: "{{ lookup('file', cft.tpl_net) }}"
+    region: "{{ aws.aws_region }}"
+    # Filename only (looked up in role's 'files/' dir)
+    template_body: "{{ lookup('file', 'network.yaml') }}"
+    capabilities: [CAPABILITY_NAMED_IAM]
     template_parameters:
-      ClusterName: "{{ cluster_name }}"
+      ClusterName: "{{ ocp_cluster.name }}"
       InfrastructureName: "{{ infra_id }}"
-      HostedZoneName: "{{ base_domain }}"
+      HostedZoneName: "{{ ocp_cluster.base_domain }}"
       HostedZoneId: "{{ aws.hosted_zone_id }}"
       VpcId: "{{ aws.vpc_id }}"
       PublicSubnets: "{{ aws.public_subnets | join(',') }}"
       PrivateSubnets: "{{ aws.private_subnets | join(',') }}"
   register: net_stack
 
-# ----------------------------------------------------------------
-# 5. Stack 2: Security Groups & IAM
-# ----------------------------------------------------------------
-- name: "Deploy Security Stack ({{ cft.tpl_sg }})"
+# ---------------------------------------------------------
+# Security Stack
+# ---------------------------------------------------------
+- name: "Deploy Security Stack"
   amazon.aws.cloudformation:
-    stack_name: "{{ cluster_name }}-security"
+    stack_name: "aws-ocp-sg"
     state: present
-    region: "{{ aws_region }}"
-    template_body: "{{ lookup('file', cft.tpl_sg) }}"
+    region: "{{ aws.aws_region }}"
+    # Filename only
+    template_body: "{{ lookup('file', 'securitygroup.yaml') }}"
+    capabilities: [CAPABILITY_NAMED_IAM]
     template_parameters:
       InfrastructureName: "{{ infra_id }}"
       VpcId: "{{ aws.vpc_id }}"
-      VpcCidr: "{{ install_config.machine_network.cidr }}" # Ensure this matches your actual VPC CIDR
+      VpcCidr: "{{ install_config.machine_network.cidr }}"
       PrivateSubnets: "{{ aws.private_subnets | join(',') }}"
   register: sec_stack
 
-# ----------------------------------------------------------------
-# 6. Stack 3: Bootstrap Node
-# ----------------------------------------------------------------
-- name: "Deploy Bootstrap Stack ({{ cft.tpl_boot }})"
+# ---------------------------------------------------------
+# Get AMI ID
+# ---------------------------------------------------------
+- name: "Config: Fetch CoreOS AMI ID"
+  shell: |
+    ./openshift-install coreos print-stream-json | \
+    jq -r '.architectures.x86_64.images.aws.regions["{{ aws.aws_region }}"].image'
+  register: ami_out
+
+- name: Display AMI ID
+  debug:
+    msg: "Using AMI: {{ ami_out.stdout }}"
+
+- set_fact:
+    rhcos_ami: "{{ ami_out.stdout }}"
+
+# ---------------------------------------------------------
+# Bootstrap Stack
+# ---------------------------------------------------------
+- name: "Deploy Bootstrap Stack"
   amazon.aws.cloudformation:
-    stack_name: "{{ cluster_name }}-bootstrap"
+    stack_name: "aws-ocp-bootstrap"
     state: present
-    region: "{{ aws_region }}"
-    template_body: "{{ lookup('file', cft.tpl_boot) }}"
+    region: "{{ aws.aws_region }}"
+    # Filename only
+    template_body: "{{ lookup('file', 'bootstrap.yaml') }}"
+    capabilities: [CAPABILITY_NAMED_IAM]
     template_parameters:
       InfrastructureName: "{{ infra_id }}"
       RhcosAmi: "{{ rhcos_ami }}"
-      PublicSubnet: "{{ aws.public_subnets[0] }}" # Uses first public subnet
-      MasterSecurityGroupId: "{{ sec_stack.stack_outputs.MasterSecurityGroupId }}"
+      AllowedBootstrapSshCidr: "0.0.0.0/0"
+      PublicSubnet: "{{ aws.public_subnets[0] }}"
       VpcId: "{{ aws.vpc_id }}"
-      BootstrapIgnitionLocation: "{{ bootstrap_url.url }}"
+      BootstrapIgnitionLocation: "{{ bootstrap_url }}"
       BootstrapInstanceType: "{{ cft.bootstrap_type }}"
-      # Link Lambda ARNs from Network Stack
+      # --- Outputs from Previous Stacks ---
+      MasterSecurityGroupId: "{{ sec_stack.stack_outputs.MasterSecurityGroupId }}"
       RegisterNlbIpTargetsLambdaArn: "{{ net_stack.stack_outputs.RegisterNlbIpTargetsLambda }}"
       ExternalApiTargetGroupArn: "{{ net_stack.stack_outputs.ExternalApiTargetGroupArn }}"
       InternalApiTargetGroupArn: "{{ net_stack.stack_outputs.InternalApiTargetGroupArn }}"
       InternalServiceTargetGroupArn: "{{ net_stack.stack_outputs.InternalServiceTargetGroupArn }}"
 
-- name: Wait for Bootstrap API
+# ---------------------------------------------------------
+# Control Plane Stack
+# ---------------------------------------------------------
+- name: "Read master.ign file"
+  slurp:
+    src: "/home/ec2-user/install-dir/master.ign"
+  register: master_ign_content
+
+- name: "Extract CA Bundle from master.ign JSON"
+  set_fact:
+    # 1. Decode the file
+    # 2. Parse JSON
+    # 3. Grab the 'source' field: "data:text/plain...;base64,LS0t..."
+    # 4. Split at the comma to get JUST the Base64 string
+    ca_bundle: "{{ (master_ign_content['content'] | b64decode | from_json).ignition.security.tls.certificateAuthorities[0].source }}"
+
+- name: "Debug: Verify CA Bundle"
+  debug:
+    msg: "CA Bundle found (First 20 chars): {{ ca_bundle[:20] }}"
+
+- name: "Deploy Control Plane Stack"
+  amazon.aws.cloudformation:
+    stack_name: "aws-ocp-cp"
+    state: present
+    region: "{{ aws.aws_region }}"
+    # Filename only
+    template_body: "{{ lookup('file', 'controlplane.yaml') }}"
+    capabilities: [CAPABILITY_NAMED_IAM]
+    template_parameters:
+      InfrastructureName: "{{ infra_id }}"
+      RhcosAmi: "{{ rhcos_ami }}"
+      MasterInstanceType: "{{ cft.master_type }}"
+      Master0Subnet: "{{ aws.private_subnets[0] }}"
+      Master1Subnet: "{{ aws.private_subnets[1] }}"
+      Master2Subnet: "{{ aws.private_subnets[2] }}"
+      IgnitionLocation: "https://api-int.{{ ocp_cluster.name }}.{{ ocp_cluster.base_domain }}:22623/config/master"
+      CertificateAuthorities: "{{ ca_bundle }}"
+      # --- Outputs from Previous Stacks ---
+      MasterSecurityGroupId: "{{ sec_stack.stack_outputs.MasterSecurityGroupId }}"
+      MasterInstanceProfileName: "{{ sec_stack.stack_outputs.MasterInstanceProfile }}"
+      RegisterNlbIpTargetsLambdaArn: "{{ net_stack.stack_outputs.RegisterNlbIpTargetsLambda }}"
+      ExternalApiTargetGroupArn: "{{ net_stack.stack_outputs.ExternalApiTargetGroupArn }}"
+      InternalApiTargetGroupArn: "{{ net_stack.stack_outputs.InternalApiTargetGroupArn }}"
+      InternalServiceTargetGroupArn: "{{ net_stack.stack_outputs.InternalServiceTargetGroupArn }}"
+
+# ---------------------------------------------------------
+# Worker Stacks
+# ---------------------------------------------------------
+- name: "Deploy Worker Stacks"
+  amazon.aws.cloudformation:
+    # Generates: <cluster_name>-wk1, <cluster_name>-wk2, etc.
+    stack_name: "{{ ocp_cluster.name }}-wk{{ idx + 1 }}"
+    state: present
+    region: "{{ aws.aws_region }}"
+    template_body: "{{ lookup('file', 'workernode.yaml') }}"
+    capabilities: [CAPABILITY_NAMED_IAM]
+    template_parameters:
+      InfrastructureName: "{{ infra_id }}"
+      RhcosAmi: "{{ rhcos_ami }}"
+      # "item" is the subnet ID from the loop below
+      Subnet: "{{ item }}"
+      WorkerInstanceType: "{{ cft.worker_type }}"
+      IgnitionLocation: "https://api-int.{{ ocp_cluster.name }}.{{ ocp_cluster.base_domain }}:22623/config/worker"
+      CertificateAuthorities: "{{ ca_bundle }}"
+      # --- Outputs from Previous Stacks ---
+      WorkerSecurityGroupId: "{{ sec_stack.stack_outputs.WorkerSecurityGroupId }}"
+      WorkerInstanceProfileName: "{{ sec_stack.stack_outputs.WorkerInstanceProfile }}"
+  # Loops through the list of private subnets from your inventory
+  loop: "{{ aws.private_subnets }}"
+  loop_control:
+    # Creates a variable 'idx' counting from 0
+    index_var: idx
+
+# ---------------------------------------------------------
+# CSR Approval (Loop until stable)
+# ---------------------------------------------------------
+#- name: "OCP: Approve Pending CSRs (Run for 10 mins)"
+#  shell: |
+#    export KUBECONFIG={{ install_dir }}/auth/kubeconfig
+#    oc get csr -o go-template='{{ '{{' }}range .items{{ '}}' }}{{ '{{' }}if not .status{{ '}}' }}{{ '{{' }}.metadata.name{{ '}}' }}{{ '{{' }}"\n"{{ '}}' }}{{ '{{' }}end{{ '}}' }}{{ '{{' }}end{{ '}}' }}' | xargs --no-run-if-empty oc adm certificate approve
+#  register: csr_result
+#  until: csr_result.rc == 0
+#  retries: 20  # Retry 20 times
+#  delay: 30    # Every 30 seconds
+#  ignore_errors: yes
+
+# ---------------------------------------------------------
+# Start Auto-Approver (Background)
+# ---------------------------------------------------------
+- name: "Start CSR Auto-Approver in Background"
+  shell: |
+    nohup bash -c "
+    export KUBECONFIG={{ install_dir }}/auth/kubeconfig
+    while true; do
+      oc get csr -o go-template='{{ '{{' }}range .items{{ '}}' }}{{ '{{' }}if not .status{{ '}}' }}{{ '{{' }}.metadata.name{{ '}}' }}{{ '{{' }}\"\n\"{{ '}}' }}{{ '{{' }}end{{ '}}' }}{{ '{{' }}end{{ '}}' }}' | xargs --no-run-if-empty oc adm certificate approve
+      sleep 10
+    done
+    " > /dev/null 2>&1 &
+  # 'async: 0' and 'poll: 0' makes this "fire and forget"
+  async: 10
+  poll: 0
+
+- name: "Wait for Bootstrap API"
   command: "./openshift-install wait-for bootstrap-complete --dir {{ install_dir }} --log-level=info"
   async: 3600
   poll: 60
 
-# ----------------------------------------------------------------
-# 7. Stack 4: Control Plane (Masters)
-# ----------------------------------------------------------------
-- name: "Deploy Control Plane Stack ({{ cft.tpl_cp }})"
-  amazon.aws.cloudformation:
-    stack_name: "{{ cluster_name }}-cp"
-    state: present
-    region: "{{ aws_region }}"
-    template_body: "{{ lookup('file', cft.tpl_cp) }}"
-    template_parameters:
-      InfrastructureName: "{{ infra_id }}"
-      RhcosAmi: "{{ rhcos_ami }}"
-      MasterSecurityGroupId: "{{ sec_stack.stack_outputs.MasterSecurityGroupId }}"
-      MasterInstanceProfileName: "{{ sec_stack.stack_outputs.MasterInstanceProfile }}"
-      MasterInstanceType: "{{ cft.master_type }}"
-      # Assign Subnets individually
-      Master0Subnet: "{{ aws.private_subnets[0] }}"
-      Master1Subnet: "{{ aws.private_subnets[1] }}"
-      Master2Subnet: "{{ aws.private_subnets[2] }}"
-      # Link Lambda ARNs
-      RegisterNlbIpTargetsLambdaArn: "{{ net_stack.stack_outputs.RegisterNlbIpTargetsLambda }}"
-      ExternalApiTargetGroupArn: "{{ net_stack.stack_outputs.ExternalApiTargetGroupArn }}"
-      InternalApiTargetGroupArn: "{{ net_stack.stack_outputs.InternalApiTargetGroupArn }}"
-      InternalServiceTargetGroupArn: "{{ net_stack.stack_outputs.InternalServiceTargetGroupArn }}"
-      # Config Locations
-      IgnitionLocation: "https://api-int.{{ cluster_name }}.{{ base_domain }}:22623/config/master"
-      CertificateAuthorities: "{{ ca_bundle }}"
+- name: "Wait for OpenShift Install Complete (Can take 30-45 mins)"
+  command:
+    cmd: "./openshift-install wait-for install-complete --dir {{ install_dir }} --log-level=info"
+  register: install_result
+  # This command runs for a long time, so we use async to prevent SSH timeouts
+  async: 3600  # Wait up to 1 hour
+  poll: 60     # Check status every 60 seconds
 
-# ----------------------------------------------------------------
-# 8. Stack 5: Workers
-# ----------------------------------------------------------------
-- name: "Deploy Worker Stacks ({{ cft.tpl_wk }})"
-  amazon.aws.cloudformation:
-    stack_name: "{{ cluster_name }}-wk{{ index + 1 }}"
-    state: present
-    region: "{{ aws_region }}"
-    template_body: "{{ lookup('file', cft.tpl_wk) }}"
-    template_parameters:
-      InfrastructureName: "{{ infra_id }}"
-      RhcosAmi: "{{ rhcos_ami }}"
-      Subnet: "{{ item }}"
-      WorkerSecurityGroupId: "{{ sec_stack.stack_outputs.WorkerSecurityGroupId }}"
-      WorkerInstanceProfileName: "{{ sec_stack.stack_outputs.WorkerInstanceProfile }}"
-      WorkerInstanceType: "{{ cft.worker_type }}"
-      IgnitionLocation: "https://api-int.{{ cluster_name }}.{{ base_domain }}:22623/config/worker"
-      CertificateAuthorities: "{{ ca_bundle }}"
-  loop: "{{ aws.private_subnets }}"
-  loop_control:
-    index_var: index
+- debug:
+    msg: "Cluster console available at: https://console-openshift-console.apps.{{ cluster_name }}.{{ base_domain }}/"
 
-# ----------------------------------------------------------------
-# 9. CSR Approver Loop
-# ----------------------------------------------------------------
-- name: Auto-Approve CSRs (Run for 15 mins)
-  shell: |
-    export KUBECONFIG={{ install_dir }}/auth/kubeconfig
-    oc get csr -o go-template='{{ '{{' }}range .items{{ '}}' }}{{ '{{' }}if not .status{{ '}}' }}{{ '{{' }}.metadata.name{{ '}}' }}{{ '{{' }}"\n"{{ '}}' }}{{ '{{' }}end{{ '}}' }}{{ '{{' }}end{{ '}}' }}' | xargs --no-run-if-empty oc adm certificate approve
-  register: csr_result
-  until: csr_result.rc == 0
-  retries: 30  # 30 * 30s = 15 mins
-  delay: 30
-  ignore_errors: yes
+- name: Get kubeconfig auth
+  set_fact:
+    kubefile: "/home/ec2-user/install-dir/auth/kubeadmin-password"
 
-# ----------------------------------------------------------------
-# 10. Cleanup & Finalize
-# ----------------------------------------------------------------
-- name: Remove Bootstrap Stack
-  amazon.aws.cloudformation:
-    stack_name: "{{ cluster_name }}-bootstrap"
-    state: absent
-    region: "{{ aws_region }}"
+- name: Slurp the remote file
+  ansible.builtin.slurp:
+    src: "{{ kubefile }}"
+  register: remote_kube_file
 
-- name: Remove Bootstrap S3 Bucket
-  amazon.aws.s3_bucket:
-    name: "{{ stable_s3_bucket }}"
-    state: absent
-    force: yes
-
-- name: Wait for Install Complete
-  command: "./openshift-install wait-for install-complete --dir {{ install_dir }}"
+- debug:
+    msg: "kubeadmin pw: {{ remote_kube_file['content'] | b64decode }}"
