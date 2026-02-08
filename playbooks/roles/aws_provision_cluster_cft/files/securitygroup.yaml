@@ -50,6 +50,13 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Cluster Master Security Group
+      Tags:
+        # 1. Dynamic Name: "sts-cluster-xyz-controlplane"
+        - Key: Name
+          Value: !Join ["-", [!Ref InfrastructureName, "controlplane"]]
+        # 2. Dynamic Cluster Ownership Key: "kubernetes.io/cluster/sts-cluster-xyz"
+        - Key: !Join [ "/", [ "kubernetes.io/cluster", !Ref InfrastructureName ] ]
+          Value: "owned"
       SecurityGroupIngress:
       - IpProtocol: icmp
         FromPort: 0
@@ -73,6 +80,13 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Cluster Worker Security Group
+      Tags:
+        # 1. Dynamic Name: "sts-cluster-xyz-node"
+        - Key: Name
+          Value: !Join ["-", [!Ref InfrastructureName, "node"]]
+        # 2. Dynamic Cluster Ownership Key
+        - Key: !Join ["/", ["kubernetes.io/cluster", !Ref InfrastructureName]]
+          Value: "owned"
       SecurityGroupIngress:
       - IpProtocol: icmp
         FromPort: 0

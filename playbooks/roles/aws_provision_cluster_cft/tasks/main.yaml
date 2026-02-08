@@ -1,3 +1,57 @@
+# --------------------------------------------------------------------
+# Extract Infrastructure ID
+# --------------------------------------------------------------------
+- name: "Read Infrastructure Config"
+  slurp:
+    src: "{{ install_dir }}/manifests/cluster-infrastructure-02-config.yml"
+  register: infra_config
+
+- name: "Set Infrastructure ID Fact"
+  set_fact:
+    infra_id: "{{ (infra_config['content'] | b64decode | from_yaml).status.infrastructureName }}"
+
+- debug:
+    msg: "Infrastructure ID: {{ infra_id }}"
+
+# ----------------------------------------------------------------
+# Find the Machine Manifests on the Remote Host
+# ----------------------------------------------------------------
+- name: "Find Machine Manifests to Delete"
+  find:
+    paths: "{{ install_dir }}/openshift"
+    patterns:
+      - "99_openshift-machine-api_master-control-plane-machine-set.yaml"
+      - "99_openshift-cluster-api_master-machines-*.yaml"
+      - "99_openshift-cluster-api_worker-machineset-*.yaml"
+  register: machine_manifests
+
+# ----------------------------------------------------------------
+# Delete the Found Files
+# ----------------------------------------------------------------
+- name: "Remove Machine Manifests (Prevent duplicate node creation)"
+  file:
+    path: "{{ item.path }}"
+    state: absent
+  loop: "{{ machine_manifests.files }}"
+  loop_control:
+    label: "{{ item.path | basename }}"
+
+- name: Create a local directory for artifacts #TODO REMOVE
+  ansible.builtin.file:
+    path: "{{ working_dir }}/{{ cluster_name }}/updated-manifests"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Download directory from remote using synchronize # TODO REMOVE
+  ansible.posix.synchronize:
+    mode: pull
+    src: /home/ec2-user/install-dir
+    dest: "{{ working_dir }}/{{ cluster_name }}/updated-manifests"
+    recursive: yes
+
 # ----------------------------------------------------------------
 # Ignition Generation
 # ----------------------------------------------------------------
@@ -50,20 +104,6 @@
 
 - debug:
     msg: "Created bootstrap URL: {{ bootstrap_url }}"
-
-# ---------------------------------------------------------
-# Get InfraID
-# ---------------------------------------------------------
-- name: "Config: Get InfraID from metadata.json"
-  shell: "jq -r .infraID {{ install_dir }}/metadata.json"
-  register: infra_id_out
-
-- name: Display InfraID
-  debug:
-    msg: "Detected InfraID: {{ infra_id_out.stdout }}"
-
-- set_fact:
-    infra_id: "{{ infra_id_out.stdout }}"
 
 # ---------------------------------------------------------
 # Network Stack
@@ -253,14 +293,6 @@
   async: 3600
   poll: 60
 
-- name: "Wait for OpenShift Install Complete (Can take 30-45 mins)"
-  command:
-    cmd: "./openshift-install wait-for install-complete --dir {{ install_dir }} --log-level=info"
-  register: install_result
-  # This command runs for a long time, so we use async to prevent SSH timeouts
-  async: 3600  # Wait up to 1 hour
-  poll: 60     # Check status every 60 seconds
-
 - debug:
     msg: "Cluster console available at: https://console-openshift-console.apps.{{ cluster_name }}.{{ base_domain }}/"
 
@@ -275,3 +307,11 @@
 
 - debug:
     msg: "kubeadmin pw: {{ remote_kube_file['content'] | b64decode }}"
+
+- name: "Wait for OpenShift Install Complete (Can take up to an hour)"
+  command:
+    cmd: "./openshift-install wait-for install-complete --dir {{ install_dir }} --log-level=info"
+  register: install_result
+  # This command runs for a long time, so we use async to prevent SSH timeouts
+  async: 3600  # Wait up to 1 hour
+  poll: 60     # Check status every 60 seconds

@@ -109,7 +109,7 @@
     --region {{ aws_region }} \
     --create-private-s3-bucket
 
-- name: Copy install-config.yaml
+- name: Populate install-config.yaml
   template:
     src: "{{ item }}.j2"
     dest: "{{ item }}"
@@ -122,6 +122,21 @@
     dest: "/home/ec2-user/install-dir/install-config.yaml"
     remote_src: yes
     mode: 0644
+
+- name: Create a local directory for artifacts #TODO REMOVE
+  ansible.builtin.file:
+    path: "{{ working_dir }}/{{ cluster_name }}/install-dir"
+    state: directory
+    mode: '0755'
+  delegate_to: localhost
+  run_once: true
+  become: false
+
+- name: Download install-config # TODO REMOVE
+  ansible.posix.synchronize:
+    mode: pull
+    src: /home/ec2-user/install-dir/install-config.yaml
+    dest: "{{ working_dir }}/{{ cluster_name }}/install-dir/"
 
 - name: Generate Manifests
   shell: |
@@ -154,15 +169,6 @@
     src: /home/ec2-user/sts
     dest: "{{ working_dir }}/{{ cluster_name }}"
     recursive: yes
-
-- name: Create a local directory for artifacts #TODO REMOVE
-  ansible.builtin.file:
-    path: "{{ working_dir }}/{{ cluster_name }}/install-dir"
-    state: directory
-    mode: '0755'
-  delegate_to: localhost
-  run_once: true
-  become: false
 
 - name: Download directory from remote using synchronize # TODO REMOVE
   ansible.posix.synchronize:
