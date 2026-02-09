@@ -1,8 +1,49 @@
 # 71301925-aws-sts
 
 # Cluster Provisioning Automation
+## OpenShift on AWS with STS Cluster Provisioning Automation
+For cluster provisioning on AWS with STS, with an existing VPC, use the following playbook:
 ```shell
- ansible-playbook provision-cluster-full.yaml -i ~/<inventory_file>
+ansible-playbook provision-cluster.yaml -i <inventory_file>
+```
+# TODO UPDATE
+## Example Inventory
+```yaml
+all:
+  hosts:
+    localhost:
+      ansible_connection: local
+  vars:
+    tmp_dir: /home/<user>/tmp
+    aws:
+      account_id: <aws_account_id>
+      aws_access_key_id: <aws_access_key_id>
+      aws_secret_access_key: <aws_secret_access_key>
+      aws_region: us-east-2
+      sts_resource_name: "{{ ocp_cluster.name }}"
+    ocp_cluster:
+      name: <cluster_name>
+      base_domain: <base_domain>
+    install_config:    
+      cluster_name: "{{ ocp_cluster.name }}"
+      base_domain: "{{ ocp_cluster.base_domain }}"
+      cred_mode: Manual
+      control_plane:
+        instance_type: "m5.xlarge"
+      workers:
+        instance_type: "m5.2xlarge"
+        replicas: "3"
+      infras:
+        instance_type: "m5.2xlarge"
+      ssh_key: ssh-ed25519 <ssh_key>
+      pull_secret: '<pull_secret>'
+```
+
+## Full Cluster Provisioning Automation
+For full cluster automation, including automated creation of the AWS VPC, use the following playbook:
+
+```shell
+ansible-playbook provision-cluster-full.yaml -i <inventory_file>
 ```
 
 ## Example Inventory
