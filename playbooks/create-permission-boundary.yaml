@@ -1,0 +1,13 @@
+---
+- name: Create AWS VPC
+  hosts: localhost
+  connection: local
+  gather_facts: false
+
+  tasks:
+    - name: "Create Permission Boundary Policy"
+      amazon.aws.iam_managed_policy:
+        policy_name: "gwt-openshift-boundary-policy"
+        policy_description: "Permission Boundary for OpenShift Installation"
+        state: present
+        policy: "{{ lookup('file', 'files/gwt-openshift-boundary-policy.json') }}"

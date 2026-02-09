@@ -46,8 +46,3 @@
 
 - debug:
     msg: "Created STS resources and copied them locally to: {{ working_dir }}/{{ cluster_name }}"
-
-#- name: Destroy the cluster if install fails
-#  shell: |
-#    openshift-install destroy cluster --dir /home/ec2-user/install-dir --log-level=debug
-#  when: install_result.failed

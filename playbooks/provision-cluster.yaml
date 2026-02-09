@@ -1,5 +1,5 @@
 ---
-# Provision the EC2 Host
+# Provision the EC2 Installer Host
 - name: PROVISION EC2 INSTALLER HOST
   hosts: localhost
   connection: local
@@ -8,28 +8,23 @@
   roles:
     - provision_ec2_installer
 
-# Configure the newly created host
+# Configure the New Installer Host
 - name: CONFIGURE NEW EC2 INSTALLER HOST
-  hosts: newly_created_ec2 # Target the dynamic group created by the first role
+  hosts: newly_created_ec2 # Target the host created by the provision_ec2_installer role
   gather_facts: false
-
-  pre_tasks:
-    - name: Aggregate Subnet IDs for OpenShift Install Config
-      set_fact:
-        openshift_aws_subnets: "{{ aws.public_subnets + aws.private_subnets }}"
+  vars:
+    # Get variable from localhost so it can be referenced by the remote host
+    openshift_aws_subnets: "{{ hostvars['localhost']['openshift_aws_subnets'] }}"
 
   roles:
     - configure_openshift_installer
 
-# Play 3: Provision the OpenShift Cluster
+# Provision the OpenShift Cluster
 - name: PROVISION OPENSHIFT CLUSTER
-  hosts: newly_created_ec2 # Target the dynamic group created by the first role
+  hosts: newly_created_ec2
   gather_facts: false
-
-  # =================================================================
-  # PRE-TASKS: Install Python/Boto3 Dependencies
-  # =================================================================
   pre_tasks:
+    # Install some required prerequisites into the remote host
     - name: Bootstrap Python3 and Pip (Detect OS automatically)
       raw: |
         if command -v yum >/dev/null 2>&1; then
@@ -42,7 +37,7 @@
         fi
       changed_when: false
 
-    - name: Install AWS SDK (boto3) using the newly installed Pip
+    - name: Install AWS SDK (boto3) using Pip
       pip:
         name:
           - boto3
@@ -51,5 +46,4 @@
         executable: pip3
 
   roles:
-#    - aws_provision_cluster_ipi
     - aws_provision_cluster_cft

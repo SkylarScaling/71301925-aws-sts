@@ -117,7 +117,7 @@ Resources:
           Action:
           - "sts:AssumeRole"
       Path: "/"
-      #PermissionsBoundary: arn:aws:iam::796973517562:policy/gwt-openshift-boundary-policy
+      PermissionsBoundary: !Sub "arn:aws:iam::${AWS::AccountId}:policy/gwt-openshift-boundary-policy"
       Policies:
       - PolicyName: !Join ["-", [!Ref InfrastructureName, "bootstrap", "policy"]]
         PolicyDocument:
