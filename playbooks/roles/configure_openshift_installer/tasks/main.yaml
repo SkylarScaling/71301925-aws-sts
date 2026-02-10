@@ -8,7 +8,6 @@
       - openssl-devel
       - git
       - ansible-core
-      - rsync # TODO REMOVE
     state: present
   become: true
 
@@ -123,21 +122,6 @@
     remote_src: yes
     mode: 0644
 
-- name: Create a local directory for artifacts #TODO REMOVE
-  ansible.builtin.file:
-    path: "{{ working_dir }}/{{ cluster_name }}/install-dir"
-    state: directory
-    mode: '0755'
-  delegate_to: localhost
-  run_once: true
-  become: false
-
-- name: Download install-config # TODO REMOVE
-  ansible.posix.synchronize:
-    mode: pull
-    src: /home/ec2-user/install-dir/install-config.yaml
-    dest: "{{ working_dir }}/{{ cluster_name }}/install-dir/"
-
 - name: Generate Manifests
   shell: |
     openshift-install create manifests --dir /home/ec2-user/install-dir
@@ -153,29 +137,3 @@
     src: /home/ec2-user/sts/tls
     dest: /home/ec2-user/install-dir/
     remote_src: yes
-
-- name: Create a local directory for artifacts #TODO REMOVE
-  ansible.builtin.file:
-    path: "{{ working_dir }}/{{ cluster_name }}/sts"
-    state: directory
-    mode: '0755'
-  delegate_to: localhost
-  run_once: true
-  become: false
-
-- name: Download directory from remote using synchronize # TODO REMOVE
-  ansible.posix.synchronize:
-    mode: pull
-    src: /home/ec2-user/sts
-    dest: "{{ working_dir }}/{{ cluster_name }}"
-    recursive: yes
-
-- name: Download directory from remote using synchronize # TODO REMOVE
-  ansible.posix.synchronize:
-    mode: pull
-    src: /home/ec2-user/install-dir
-    dest: "{{ working_dir }}/{{ cluster_name }}"
-    recursive: yes
-
-- debug:
-    msg: "Created STS resources and copied them locally to: {{ working_dir }}/{{ cluster_name }}"

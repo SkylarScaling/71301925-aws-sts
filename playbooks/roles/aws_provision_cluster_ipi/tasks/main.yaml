@@ -27,22 +27,3 @@
 
 - debug:
     msg: "kubeadmin pw: {{ remote_kube_file['content'] | b64decode }}"
-
-- name: Create a local directory for artifacts #TODO REMOVE
-  ansible.builtin.file:
-    path: "{{ working_dir }}/{{ cluster_name }}/install-dir"
-    state: directory
-    mode: '0755'
-  delegate_to: localhost
-  run_once: true
-  become: false
-
-- name: Download directory from remote using synchronize # TODO REMOVE
-  ansible.posix.synchronize:
-    mode: pull
-    src: /home/ec2-user/install-dir
-    dest: "{{ working_dir }}/{{ cluster_name }}/install-dir"
-    recursive: yes
-
-- debug:
-    msg: "Created STS resources and copied them locally to: {{ working_dir }}/{{ cluster_name }}"
