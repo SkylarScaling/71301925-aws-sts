@@ -80,14 +80,6 @@
       "tag:Name": "{{ aws_connected_vpc_name }}-public-subnet-az3"
   register: connected_public_subnet_info_az3
 
-#- name: Create DNS route53 private domain
-#  amazon.aws.route53_zone:
-#    vpc_id: "{{ connected_vpc_info.vpcs[0].vpc_id }}"
-#    vpc_region: "{{ aws_region }}"
-#    zone: "{{ openshift_cluster_name }}.{{ install_config.base_domain }}"
-#    state: present
-#  register: hosted_zone_info
-
 - name: Create a security group for Mirror Registry to use 22,8443 and icmp
   amazon.aws.ec2_security_group:
     name: "{{ aws_security_group_for_ec2 }}"
@@ -114,7 +106,6 @@
     owners:
       - "amazon"
     filters:
-      #name: "amzn2-ami-hvm-*-x86_64-gp2"
       name: "al2023-ami-*-kernel-6.1-x86_64"
       state: available
   register: al2023_amis

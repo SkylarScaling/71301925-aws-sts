@@ -45,12 +45,9 @@
 # ---------------------------------------------------------
 # Generate a Stable Bucket Name
 # ---------------------------------------------------------
-# We create a variable for the bucket name so we can refer to it
-# later in the cleanup tasks and CloudFormation parameters.
 - name: "Define S3 Bucket Name"
   set_fact:
     # Uses the cluster name + a random number (seeded to be stable for this run)
-    # or you can hardcode a specific name if preferred.
     s3_bucket_name: "{{ ocp_cluster.name }}-infra-bootstrap-{{ 99999 | random }}"
   run_once: true
 
@@ -69,15 +66,15 @@
   retries: 3
   until: s3_create.rc == 0 or "BucketAlready" in s3_create.stderr
 
-# ---------------------------------------------------------
-# Upload Bootstrap Ignition (CLI Method)
-# ---------------------------------------------------------
+# -----------------------------------------------------
+# Upload Bootstrap Ignition
+# -----------------------------------------------------
 - name: "Upload bootstrap.ign to S3"
   shell: "aws s3 cp {{ install_dir }}/bootstrap.ign s3://{{ s3_bucket_name }}/bootstrap.ign"
 
-# ---------------------------------------------------------
-# 4. Generate Presigned URL (CLI Method)
-# ---------------------------------------------------------
+# -----------------------------------------------------
+# Generate Presigned URL
+# -----------------------------------------------------
 - name: "Generate Presigned URL"
   shell: "aws s3 presign s3://{{ s3_bucket_name }}/bootstrap.ign --expires-in 3600 --region {{ aws.aws_region }}"
   register: presign_out
@@ -85,9 +82,6 @@
 - name: "Set Bootstrap URL Fact"
   set_fact:
     bootstrap_url: "{{ presign_out.stdout | trim }}"
-
-- debug:
-    msg: "Created bootstrap URL: {{ bootstrap_url }}"
 
 # ---------------------------------------------------------
 # Network Stack
@@ -97,7 +91,6 @@
     stack_name: "aws-ocp-dns"
     state: present
     region: "{{ aws.aws_region }}"
-    # Filename only (looked up in role's 'files/' dir)
     template_body: "{{ lookup('file', 'network.yaml') }}"
     capabilities: [CAPABILITY_NAMED_IAM]
     template_parameters:
@@ -118,7 +111,6 @@
     stack_name: "aws-ocp-sg"
     state: present
     region: "{{ aws.aws_region }}"
-    # Filename only
     template_body: "{{ lookup('file', 'securitygroup.yaml') }}"
     capabilities: [CAPABILITY_NAMED_IAM]
     template_parameters:
@@ -152,7 +144,6 @@
     stack_name: "aws-ocp-bootstrap"
     state: present
     region: "{{ aws.aws_region }}"
-    # Filename only
     template_body: "{{ lookup('file', 'bootstrap.yaml') }}"
     capabilities: [CAPABILITY_NAMED_IAM]
     template_parameters:
@@ -180,22 +171,13 @@
 
 - name: "Extract CA Bundle from master.ign JSON"
   set_fact:
-    # 1. Decode the file
-    # 2. Parse JSON
-    # 3. Grab the 'source' field: "data:text/plain...;base64,LS0t..."
-    # 4. Split at the comma to get JUST the Base64 string
     ca_bundle: "{{ (master_ign_content['content'] | b64decode | from_json).ignition.security.tls.certificateAuthorities[0].source }}"
-
-- name: "Debug: Verify CA Bundle"
-  debug:
-    msg: "CA Bundle found (First 20 chars): {{ ca_bundle[:20] }}"
 
 - name: "Deploy Control Plane Stack"
   amazon.aws.cloudformation:
     stack_name: "aws-ocp-cp"
     state: present
     region: "{{ aws.aws_region }}"
-    # Filename only
     template_body: "{{ lookup('file', 'controlplane.yaml') }}"
     capabilities: [CAPABILITY_NAMED_IAM]
     template_parameters:
@@ -244,19 +226,6 @@
     index_var: idx
 
 # ---------------------------------------------------------
-# CSR Approval (Loop until stable)
-# ---------------------------------------------------------
-#- name: "OCP: Approve Pending CSRs (Run for 10 mins)"
-#  shell: |
-#    export KUBECONFIG={{ install_dir }}/auth/kubeconfig
-#    oc get csr -o go-template='{{ '{{' }}range .items{{ '}}' }}{{ '{{' }}if not .status{{ '}}' }}{{ '{{' }}.metadata.name{{ '}}' }}{{ '{{' }}"\n"{{ '}}' }}{{ '{{' }}end{{ '}}' }}{{ '{{' }}end{{ '}}' }}' | xargs --no-run-if-empty oc adm certificate approve
-#  register: csr_result
-#  until: csr_result.rc == 0
-#  retries: 20  # Retry 20 times
-#  delay: 30    # Every 30 seconds
-#  ignore_errors: yes
-
-# ---------------------------------------------------------
 # Start Auto-Approver (Background)
 # ---------------------------------------------------------
 - name: "Start CSR Auto-Approver in Background"
@@ -268,7 +237,6 @@
       sleep 10
     done
     " > /dev/null 2>&1 &
-  # 'async: 0' and 'poll: 0' makes this "fire and forget"
   async: 10
   poll: 0
 
