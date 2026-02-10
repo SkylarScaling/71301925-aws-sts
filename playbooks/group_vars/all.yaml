@@ -1,15 +1,13 @@
 ---
 bin_dir: /usr/local/bin
-home_dir: /home/sscaling
 working_dir: "{{ tmp_dir }}"
-ansible_ssh_private_key_file: "{{ home_dir }}/.ssh/sts_ed25519"
+install_dir: /home/ec2-user/install-dir
+ssh_public_key_for_ec2_and_openshift_node: "{{ install_config.ssh_key }}"
+ssh_private_key_file_for_ec2_and_openshift_node: "{{ install_config.ssh_private_key }}"
 
 state: present
 
-prefix_for_name: openshift-sts
 aws_region: "{{ aws.aws_region }}"          # aws region for install
 cluster_name: "{{ ocp_cluster.name }}"
-
-openshift_version: "4.18"
-ocp_patch_version: "20"
+base_domain: "{{ ocp_cluster.base_domain }}"
 ...

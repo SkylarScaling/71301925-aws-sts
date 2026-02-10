@@ -1,0 +1,121 @@
+AWSTemplateFormatVersion: 2010-09-09
+
+Description: Template for OpenShift Cluster Node Launch (EC2 worker instance)
+
+ 
+
+Parameters:
+  InfrastructureName:
+    AllowedPattern: ^([a-zA-Z][a-zA-Z0-9\-]{0,26})$
+    Default: nj-sbx-ocp-dfs9x
+    MaxLength: 27
+    MinLength: 1
+    ConstraintDescription: Infrastructure name must be alphanumeric, start with a letter, and have a maximum of 27 characters.
+    Description: A short, unique cluster ID used to tag nodes for the kubelet cloud provider.
+    Type: String
+  RhcosAmi:
+    Description: Current Red Hat Enterprise Linux CoreOS AMI to use for bootstrap.
+    Type: AWS::EC2::Image::Id
+    Default: ami-08f1807771f4e468b
+  Subnet:
+    Description: The subnets, recommend private, to launch the worker nodes into.
+    Type: String
+    Default: subnet-00a96244f37a16829
+  WorkerSecurityGroupId:
+    Description: The worker security group ID to associate with worker nodes.
+    Type: String
+    Default: sg-0bec231b891b11bdd
+  IgnitionLocation:
+    Default: https://api-int.nj-sbx-ocp.njaws.stg:22623/config/worker
+    Description: Ignition config file location.
+    Type: String
+  CertificateAuthorities:
+    Default: data:text/plain;charset=utf-8;base64,LS0tLS1CRUdJTiBDRVJUSUZJQ0FURS0tLS0tCk1JSURFRENDQWZpZ0F3SUJBZ0lJWW8xaHZQKy9rT2N3RFFZSktvWklodmNOQVFFTEJRQXdKakVTTUJBR0ExVUUKQ3hNSmIzQmxibk5vYVdaME1SQXdEZ1lEVlFRREV3ZHliMjkwTFdOaE1CNFhEVEkxTVRJeE56RTJORGcxTmxvWApEVE0xTVRJeE5URTJORGcxTmxvd0pqRVNNQkFHQTFVRUN4TUpiM0JsYm5Ob2FXWjBNUkF3RGdZRFZRUURFd2R5CmIyOTBMV05oTUlJQklqQU5CZ2txaGtpRzl3MEJBUUVGQUFPQ0FROEFNSUlCQ2dLQ0FRRUFySnFOQWUzbGZiVk0KSWZRWm80SmRuYVNtMGZTR2tvaWx4ODdaYUxUdis4RW0wNmhTc1BhMzMrcHhmKytMZGdBaEM0bmFmOXpOLzNyUAp2UlByYTFlcm15N0djaWM4WkhHM1dHVmJDRU4rWlJsQkRGMkxLNlFXWndSQWZMUnRqZFdiTm5ZRnNrTzdqaTcwCnk5cWVFVzNZUEowb3lDR3FjNXZoSVlQdDl3eWM3QjJKbzFNOElvcWxzSXFjdmpwa0JDV0pFbVIzeDJ1d0w1TmQKWmoxcDljc1BHWXJkOVFNVGRXZS9YQStPTUVMK1VlcStkUmZPVEluQStoNkZzaENuR3dwTDhQd1BpSXpYVm5CVApWdzA3MTd2Ujl5b3I4VVV3K1RhYXBTcVJYcmhmVm8yanRtdEdFNTJiekp2RnBKQUhnaFEwbjJQR2RtaU5tVk16ClRjTWJUZitiSVFJREFRQUJvMEl3UURBT0JnTlZIUThCQWY4RUJBTUNBcVF3RHdZRFZSMFRBUUgvQkFVd0F3RUIKL3pBZEJnTlZIUTRFRmdRVXJnb21DR0NpaW1kWEhxQ0JPNmhVTGxsckQ4WXdEUVlKS29aSWh2Y05BUUVMQlFBRApnZ0VCQUJtYk1JMWhoNjV5L2VHVGdZWHJ0N09icCtlM3B0bDVYaDg1NmZmTXVyTVUzMWNIVmdIMUU1dWJ0cVRpCktGb1Q4WUxudXcwSnI0Z1U1M3dYL0xRUkJlandPTmlGTzNzR3F3WkRGLzMyM1JUUm83U1hNL3JGRlVwWmRZdFgKVllrNjBtcURCeFdEOFVYMUpIUXovR3RFSDRMNlJYZlhtWk0yREJHMTRYVU94OUtuWlkycUdJdlRnM0kvd1RWTQpEbUl1ZHFkdHIyNFNZUEM3dEZjWnZsS3ZkektWRGd3eHRIaVBQRkdaWWwwckduWk5nSjkzVGxMV0luMGJhQmNMCkFDeEIyZm5IcmpVMVhDc0hOTUg5c2RaZ0VDNVVlcXYwVk9HVzE1K3NlSWFIU1N3WDhtNFl1NFBxNE1GZjRqL1cKbmR4TThlK3Z5dEd6NlhKYjNKNnRlSUdLTWQ0PQotLS0tLUVORCBDRVJUSUZJQ0FURS0tLS0tCg==
+    Description: Base64 encoded certificate authority string to use.
+    Type: String
+  WorkerInstanceProfileName:
+    Default: ocp-secgrp-WorkerInstanceProfile-ZbxPXrDGIKlz
+    Description: IAM profile to associate with worker nodes.
+    Type: String
+  WorkerInstanceType:
+    Default: m5.large
+    Type: String
+
+ 
+
+Metadata:
+  AWS::CloudFormation::Interface:
+    ParameterGroups:
+    - Label:
+        default: "Cluster Information"
+      Parameters:
+      - InfrastructureName
+    - Label:
+        default: "Host Information"
+      Parameters:
+      - WorkerInstanceType
+      - RhcosAmi
+      - IgnitionLocation
+      - CertificateAuthorities
+      - WorkerSecurityGroupId
+      - WorkerInstanceProfileName
+
+    - Label:
+        default: "Network Configuration"
+      Parameters:
+      - Subnet
+    ParameterLabels:
+      Subnet:
+        default: "Subnet"
+      InfrastructureName:
+        default: "Infrastructure Name"
+      WorkerInstanceType:
+        default: "Worker Instance Type"
+      WorkerInstanceProfileName:
+        default: "Worker Instance Profile Name"
+      RhcosAmi:
+        default: "Red Hat Enterprise Linux CoreOS AMI ID"
+      IgnitionLocation:
+        default: "Worker Ignition Source"
+      CertificateAuthorities:
+        default: "Ignition CA String"
+      WorkerSecurityGroupId:
+        default: "Worker Security Group ID"
+
+ 
+
+Resources:
+
+  Worker0:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: !Ref RhcosAmi
+      BlockDeviceMappings:
+      - DeviceName: /dev/xvda
+        Ebs:
+          VolumeSize: "120"
+          VolumeType: "gp2"
+      IamInstanceProfile: !Ref WorkerInstanceProfileName
+      InstanceType: !Ref WorkerInstanceType
+      NetworkInterfaces:
+      - AssociatePublicIpAddress: "false"
+        DeviceIndex: "0"
+        GroupSet:
+        - !Ref "WorkerSecurityGroupId"
+        SubnetId: !Ref "Subnet"
+      UserData:
+        Fn::Base64: !Sub
+        - '{"ignition":{"config":{"merge":[{"source":"${SOURCE}"}]},"security":{"tls":{"certificateAuthorities":[{"source":"${CA_BUNDLE}"}]}},"version":"3.1.0"}}'
+        - {
+          SOURCE: !Ref IgnitionLocation,
+          CA_BUNDLE: !Ref CertificateAuthorities,
+        }
+      Tags:
+      - Key: !Join ["", ["kubernetes.io/cluster/", !Ref InfrastructureName]]
+        Value: "shared"
+
+
+Outputs:
+  PrivateIP:
+    Description: The compute node private IP address.
+    Value: !GetAtt Worker0.PrivateIp

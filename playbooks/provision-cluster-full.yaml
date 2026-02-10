@@ -1,4 +1,12 @@
 ---
+# Create VPC for UPI
+- import_playbook: create-connected-vpc.yaml
+
+# Create Permission Boundary for AWS
+# TODO If you want to include this automation in the process, update playbooks/files/gwt-openshift-boundary-policy.json,
+# and uncomment the following line:
+- import_playbook: create-permission-boundary.yaml
+
 # Provision the EC2 Installer Host
 - name: PROVISION EC2 INSTALLER HOST
   hosts: localhost
@@ -44,6 +52,17 @@
           - botocore
         state: present
         executable: pip3
+
+    # Populate the VPC information since we created it automatically
+    - name: Override AWS Inventory Vars with Generated Network Info
+      set_fact:
+        aws: "{{ aws | combine(new_aws_data, recursive=True) }}"
+      vars:
+        new_aws_data:
+          vpc_id: "{{ hostvars['localhost']['aws_vpc_id'] }}"
+          hosted_zone_id: "{{ hostvars['localhost']['aws_hosted_zone_id'] }}"
+          public_subnets: "{{ hostvars['localhost']['aws_public_subnets'] }}"
+          private_subnets: "{{ hostvars['localhost']['aws_private_subnets'] }}"
 
   roles:
     - aws_provision_cluster_cft

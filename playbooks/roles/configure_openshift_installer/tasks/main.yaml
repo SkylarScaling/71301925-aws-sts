@@ -8,9 +8,24 @@
       - openssl-devel
       - git
       - ansible-core
-      - rsync # TODO REMOVE
     state: present
   become: true
+
+- name: Ensure .ssh directory exists
+  ansible.builtin.file:
+    path: "/home/ec2-user/.ssh"
+    state: directory
+    owner: ec2-user
+    group: ec2-user
+    mode: '0700'
+
+- name: Copy private key to bastion so it can manage the cluster
+  ansible.builtin.copy:
+    src: "{{ ssh_private_key_file_for_ec2_and_openshift_node }}"
+    dest: "/home/ec2-user/.ssh/id_rsa"
+    owner: ec2-user
+    group: ec2-user
+    mode: '0600'
 
 - name: Create .aws directory
   ansible.builtin.file:
@@ -33,7 +48,6 @@
     - "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/{{ openshift_version }}.{{ ocp_patch_version }}/openshift-install-linux.tar.gz"
     - "https://mirror.openshift.com/pub/openshift-v4/x86_64/clients/ocp/{{ openshift_version }}.{{ ocp_patch_version }}/ccoctl-linux-rhel9.tar.gz"
     - "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip"
-#    - "https://mirror.openshift.com/pub/openshift-v4/clients/rosa/latest/rosa-linux.tar.gz"
 
 - name: Unarchive Downloaded Files
   ansible.builtin.unarchive:
@@ -43,7 +57,6 @@
   loop:
     - openshift-client-linux.tar.gz
     - awscli-exe-linux-x86_64.zip
-#    - rosa-linux.tar.gz
     - openshift-install-linux.tar.gz
     - ccoctl-linux-rhel9.tar.gz
 
@@ -55,7 +68,6 @@
     mode: 0755
   loop:
     - oc
-#    - rosa
     - kubectl
     - openshift-install
     - ccoctl
@@ -92,7 +104,7 @@
     --region {{ aws_region }} \
     --create-private-s3-bucket
 
-- name: Copy install-config.yaml
+- name: Populate install-config.yaml
   template:
     src: "{{ item }}.j2"
     dest: "{{ item }}"
@@ -121,38 +133,3 @@
     src: /home/ec2-user/sts/tls
     dest: /home/ec2-user/install-dir/
     remote_src: yes
-
-- name: Create a local directory for artifacts #TODO REMOVE
-  ansible.builtin.file:
-    path: "{{ working_dir }}/{{ cluster_name }}/sts"
-    state: directory
-    mode: '0755'
-  delegate_to: localhost
-  run_once: true
-  become: false
-
-- name: Download directory from remote using synchronize # TODO REMOVE
-  ansible.posix.synchronize:
-    mode: pull
-    src: /home/ec2-user/sts
-    dest: "{{ working_dir }}/{{ cluster_name }}/sts"
-    recursive: yes
-
-- name: Create a local directory for artifacts #TODO REMOVE
-  ansible.builtin.file:
-    path: "{{ working_dir }}/{{ cluster_name }}/install-dir"
-    state: directory
-    mode: '0755'
-  delegate_to: localhost
-  run_once: true
-  become: false
-
-- name: Download directory from remote using synchronize # TODO REMOVE
-  ansible.posix.synchronize:
-    mode: pull
-    src: /home/ec2-user/install-dir
-    dest: "{{ working_dir }}/{{ cluster_name }}/install-dir"
-    recursive: yes
-
-- debug:
-    msg: "Created STS resources and copied them locally to: {{ working_dir }}/{{ cluster_name }}"

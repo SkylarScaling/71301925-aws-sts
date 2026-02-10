@@ -1,0 +1,29 @@
+- name: Install the cluster
+  shell: |
+    openshift-install create cluster --dir /home/ec2-user/install-dir --log-level=debug
+  async: 3600
+  poll: 0
+  register: cluster_deploy
+
+- name: Check the status of the install
+  ansible.builtin.async_status:
+    jid: "{{ cluster_deploy.ansible_job_id }}"
+  register: job_status
+  until: job_status.finished
+  retries: 120
+  delay: 30
+
+- debug:
+    msg: "Cluster console available at: https://console-openshift-console.apps.{{ cluster_name }}.{{ base_domain }}/"
+
+- name: Get kubeconfig auth
+  set_fact:
+    kubefile: "/home/ec2-user/install-dir/auth/kubeadmin-password"
+
+- name: Slurp the remote file
+  ansible.builtin.slurp:
+    src: "{{ kubefile }}"
+  register: remote_kube_file
+
+- debug:
+    msg: "kubeadmin pw: {{ remote_kube_file['content'] | b64decode }}"
