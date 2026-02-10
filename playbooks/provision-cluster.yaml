@@ -13,8 +13,7 @@
   hosts: newly_created_ec2 # Target the host created by the provision_ec2_installer role
   gather_facts: false
   vars:
-    # Get variable from localhost so it can be referenced by the remote host
-    openshift_aws_subnets: "{{ hostvars['localhost']['openshift_aws_subnets'] }}"
+    openshift_aws_subnets: "{{ aws.public_subnets + aws.private_subnets }}"
 
   roles:
     - configure_openshift_installer
