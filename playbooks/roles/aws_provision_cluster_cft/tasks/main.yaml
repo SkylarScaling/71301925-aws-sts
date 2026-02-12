@@ -260,7 +260,7 @@
 - debug:
     msg: "kubeadmin pw: {{ remote_kube_file['content'] | b64decode }}"
 
-- name: "Wait for OpenShift Install Complete (Can take up to an hour)"
+- name: "Wait for OpenShift Install to Complete (Can take up to an hour)"
   command:
     cmd: "./openshift-install wait-for install-complete --dir {{ install_dir }} --log-level=info"
   register: install_result

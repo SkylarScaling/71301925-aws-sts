@@ -8,6 +8,7 @@
       - openssl-devel
       - git
       - ansible-core
+      - python3-pip
     state: present
   become: true
 
@@ -72,6 +73,24 @@
     - openshift-install
     - ccoctl
   become: yes
+
+- name: Install Python Kubernetes Library (Required for GitOps Role)
+  ansible.builtin.pip:
+    name:
+      - boto3
+      - botocore
+      - kubernetes
+      - openshift
+      - pyyaml
+    executable: pip3
+  become: true
+
+- name: Install Kubernetes Ansible Collection
+  ansible.builtin.command:
+    cmd: ansible-galaxy collection install kubernetes.core
+  # This makes it idempotent (won't fail if already installed)
+  register: galaxy_result
+  changed_when: "'was installed successfully' in galaxy_result.stdout"
 
 - name: Create credentials directory
   file:

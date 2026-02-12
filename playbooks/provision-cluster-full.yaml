@@ -32,27 +32,6 @@
   hosts: newly_created_ec2
   gather_facts: false
   pre_tasks:
-    # Install some required prerequisites into the remote host
-    - name: Bootstrap Python3 and Pip (Detect OS automatically)
-      raw: |
-        if command -v yum >/dev/null 2>&1; then
-          sudo yum install -y python3-pip
-        elif command -v apt-get >/dev/null 2>&1; then
-          sudo apt-get update && sudo apt-get install -y python3-pip
-        else
-          echo "No supported package manager found." >&2
-          exit 1
-        fi
-      changed_when: false
-
-    - name: Install AWS SDK (boto3) using Pip
-      pip:
-        name:
-          - boto3
-          - botocore
-        state: present
-        executable: pip3
-
     # Populate the VPC information since we created it automatically
     - name: Override AWS Inventory Vars with Generated Network Info
       set_fact:
@@ -66,3 +45,12 @@
 
   roles:
     - aws_provision_cluster_cft
+
+# Apply Day 2 Configuration
+- name: APPLY DAY 2 CONFIGURATION TO OPENSHIFT CLUSTER
+  hosts: newly_created_ec2
+  gather_facts: false
+  environment:
+    KUBECONFIG: "{{ install_dir }}/auth/kubeconfig"
+  roles:
+    - install_openshift_gitops
