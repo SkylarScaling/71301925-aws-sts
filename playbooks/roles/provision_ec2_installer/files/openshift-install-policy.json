@@ -154,6 +154,8 @@
       "Action": [
         "iam:CreateInstanceProfile",
         "iam:AddRoleToInstanceProfile",
+        "iam:RemoveRoleFromInstanceProfile",
+        "iam:DeleteInstanceProfile",
         "iam:PassRole",
         "iam:DeleteRole",
         "iam:At*e*",

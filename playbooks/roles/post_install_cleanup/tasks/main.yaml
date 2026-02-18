@@ -1,0 +1,32 @@
+# ----------------------------------------------------------------
+# Clean up Bastion Infrastructure
+# ----------------------------------------------------------------
+- name: "Terminate Bastion EC2 Instance"
+  amazon.aws.ec2_instance:
+    filters:
+      # Use the IP address Ansible is currently connected to
+      ip-address: "{{ inventory_hostname }}"
+    state: absent
+    region: "{{ aws.aws_region }}"
+    wait: no
+  delegate_to: localhost
+  become: false
+
+- name: "Pause briefly to allow EC2 instance to detach IAM profile"
+  ansible.builtin.pause:
+    seconds: 30
+  delegate_to: localhost
+
+- name: "Delete Bastion IAM Instance Profile"
+  amazon.aws.iam_instance_profile:
+    name: "{{ aws_iam_role_name }}-profile"
+    state: absent
+  delegate_to: localhost
+  become: false
+
+- name: "Delete Bastion IAM Role"
+  amazon.aws.iam_role:
+    name: "{{ aws_iam_role_name }}"
+    state: absent
+  delegate_to: localhost
+  become: false
