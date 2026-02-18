@@ -35,3 +35,10 @@
 
   roles:
     - install_openshift_gitops
+
+# Cleanup Bastion After Install
+- name: POST INSTALL CLEANUP
+  hosts: newly_created_ec2
+  gather_facts: false
+  roles:
+    - post_install_cleanup

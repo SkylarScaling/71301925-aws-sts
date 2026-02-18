@@ -267,3 +267,34 @@
   # This command runs for a long time, so we use async to prevent SSH timeouts
   async: 3600  # Wait up to 1 hour
   poll: 60     # Check status every 60 seconds
+
+# ----------------------------------------------------------------
+# Create Auth Backup S3 Bucket
+# ----------------------------------------------------------------
+- name: "Create Auth Backup S3 Bucket"
+  shell: "aws s3 mb s3://{{ aws.auth_s3_bucket }} --region {{ aws.aws_region }}"
+  register: auth_s3_create
+  # Fail if error is NOT "BucketAlreadyExists" or "BucketAlreadyOwnedByYou"
+  failed_when:
+    - auth_s3_create.rc != 0
+    - '"BucketAlready" not in auth_s3_create.stderr'
+  # Adding a small delay to ensure AWS registers the bucket existence
+  delay: 5
+  retries: 3
+  until: auth_s3_create.rc == 0 or "BucketAlready" in auth_s3_create.stderr
+
+# ----------------------------------------------------------------
+# Backup Auth Directory to S3
+# ----------------------------------------------------------------
+- name: "Backup OpenShift Auth Directory to S3"
+  shell: "aws s3 cp {{ install_dir }}/auth/ s3://{{ aws.auth_s3_bucket }}/auth/ --recursive"
+
+# ----------------------------------------------------------------
+# Clean up Bootstrap Infrastructure
+# ----------------------------------------------------------------
+- name: "Destroy Bootstrap CloudFormation Stack"
+  amazon.aws.cloudformation:
+    stack_name: "aws-ocp-bootstrap"
+    state: absent
+    region: "{{ aws.aws_region }}"
+  # Deleting the stack automatically terminates the bootstrap EC2 instance
