@@ -27,6 +27,7 @@ all:
       aws_access_key_id: <AWS_ACCESS_KEY_ID>
       aws_secret_access_key: <AWS_SECRET_ACCESS_KEY>
       aws_region: <AWS_REGION>
+      auth_s3_bucket: <S3_BUCKET_FOR_AUTH>
       sts_resource_name: "{{ ocp_cluster.name }}"
       # --- Existing Infrastructure, if it Already Exists ---
       vpc_id: vpc-xxxxx
@@ -85,6 +86,7 @@ all:
       aws_access_key_id: <AWS_ACCESS_KEY_ID>
       aws_secret_access_key: <AWS_SECRET_ACCESS_KEY>
       aws_region: <AWS_REGION>
+      auth_s3_bucket: <S3_BUCKET_FOR_AUTH>
       sts_resource_name: "{{ ocp_cluster.name }}"
     cft:
       # --- Instance Sizes ---
