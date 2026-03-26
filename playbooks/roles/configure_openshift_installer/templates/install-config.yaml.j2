@@ -1,5 +1,11 @@
 apiVersion: v1
 baseDomain: {{ install_config.base_domain }}
+{% if install_config.publish is defined %}
+publish: {{ install_config.publish }}
+{% endif %}
+{% if install_config.fips is defined %}
+fips: {{ install_config.fips }}
+{% endif %}
 {% if install_config.cred_mode is defined %}
 credentialsMode: {{ install_config.cred_mode }}
 {% endif %}
